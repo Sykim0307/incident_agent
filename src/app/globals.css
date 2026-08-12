@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface-2: #efede5;
+  --ink: #13161c;
+  --ink-soft: #545c68;
+  --ink-faint: #8a8f98;
+  --rule: #dcd8cd;
+  --accent: #1f3a5f;
+  --accent-soft: #e1e7ee;
+  --accent-ink: #0e2038;
+  --sev-critical: #a9291e;
+  --sev-critical-bg: #f6e4e2;
+  --sev-high: #a15c0a;
+  --sev-high-bg: #f4e9d8;
+  --sev-medium: #2a5f84;
+  --sev-medium-bg: #e2ebf1;
+  --sev-ok: #2c6e4f;
+  --sev-ok-bg: #e1efe7;
+  --sev-unknown: #6b6156;
+  --sev-unknown-bg: #ece9e3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --surface: #171b21;
+    --surface-2: #1e232b;
+    --ink: #e8e9e7;
+    --ink-soft: #a2a9b3;
+    --ink-faint: #6c7480;
+    --rule: #2a2f37;
+    --accent: #6f9bc7;
+    --accent-soft: #1d2a38;
+    --accent-ink: #cfe0f0;
+    --sev-critical: #e36a5f;
+    --sev-critical-bg: #2a1a18;
+    --sev-high: #de9a4a;
+    --sev-high-bg: #2b2114;
+    --sev-medium: #6fa6cc;
+    --sev-medium-bg: #16232c;
+    --sev-ok: #5fb98a;
+    --sev-ok-bg: #14261c;
+    --sev-unknown: #a49d90;
+    --sev-unknown-bg: #211f1a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-critical-bg: var(--sev-critical-bg);
+  --color-sev-high: var(--sev-high);
+  --color-sev-high-bg: var(--sev-high-bg);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-medium-bg: var(--sev-medium-bg);
+  --color-sev-ok: var(--sev-ok);
+  --color-sev-ok-bg: var(--sev-ok-bg);
+  --color-sev-unknown: var(--sev-unknown);
+  --color-sev-unknown-bg: var(--sev-unknown-bg);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo",
+    Roboto, sans-serif;
+  --font-mono: "Cascadia Code", "SF Mono", "D2Coding", Consolas, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}

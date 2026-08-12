@@ -1,0 +1,4 @@
+2026-08-12 23:41:02 ERROR [settlement-batch] java.lang.OutOfMemoryError: Java heap space
+2026-08-12 23:41:02 ERROR [settlement-batch] batch job SETTLE_DAILY_LEDGER terminated abnormally
+2026-08-12 23:41:03 WARN  [scheduler] job SETTLE_DAILY_LEDGER exit code = 1
+2026-08-12 23:41:05 ERROR [settlement-batch] heap usage before crash: 7.8GB / 8GB (97%)

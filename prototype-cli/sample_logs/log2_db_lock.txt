@@ -1,0 +1,5 @@
+2026-08-12 09:00:12 ERROR [order-svc] java.sql.SQLTransientException: Lock wait timeout exceeded; try restarting transaction
+2026-08-12 09:00:13 ERROR [order-svc] Lock wait timeout exceeded; try restarting transaction
+2026-08-12 09:00:15 WARN  [order-svc] order_commit_latency_p99=4300ms (threshold 500ms)
+2026-08-12 09:00:16 ERROR [order-svc] deadlock detected while updating ORD_STATUS table
+2026-08-12 09:00:20 WARN  [alert] MTS 체결 지연 다수 접수 (고객센터 문의 급증)

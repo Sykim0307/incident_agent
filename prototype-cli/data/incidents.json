@@ -1,0 +1,130 @@
+[
+  {
+    "id": "INC-2024-0113",
+    "title": "HTS 로그인 지연 - WAS 커넥션 풀 고갈",
+    "system": "HTS (홈트레이딩시스템)",
+    "keywords": ["connection pool", "timeout", "idle object", "was", "로그인 지연", "커넥션", "sqlexception"],
+    "symptoms": "장 시작 직후 동시 로그인 요청 급증으로 WAS 커넥션 풀이 고갈되어 로그인 응답시간이 15초 이상 지연됨. SQLException: Cannot get a connection, pool error 로그 다량 발생.",
+    "root_cause": "WAS 커넥션 풀 max size가 피크 트래픽 대비 과소 설정되어 있었고, 일부 커넥션이 반환되지 않고 유지(leak)됨.",
+    "resolution": [
+      "WAS 커넥션 풀 max/min size를 피크 시간대 기준으로 재산정",
+      "커넥션 반환 누락 여부 코드 점검 (try-with-resources 적용)",
+      "임시 조치로 WAS 인스턴스 재기동 및 커넥션 풀 강제 리셋",
+      "커넥션 풀 사용률 모니터링 알람 임계치 신설(80% 이상 시 경보)"
+    ],
+    "severity": "HIGH",
+    "avg_resolution_min": 45
+  },
+  {
+    "id": "INC-2024-0209",
+    "title": "MTS 주문 체결 지연 - DB Lock 경합",
+    "system": "MTS (모바일트레이딩시스템)",
+    "keywords": ["lock wait timeout", "deadlock", "주문 지연", "체결", "db lock", "장 시작"],
+    "symptoms": "09:00 장 시작 동시 주문 폭주 구간에 주문 테이블에서 Lock wait timeout exceeded 오류가 다량 발생하며 체결 처리가 지연됨.",
+    "root_cause": "주문 상태 업데이트 트랜잭션이 필요 이상으로 넓은 범위의 row lock을 오래 점유. 인덱스 미사용으로 인한 풀스캔성 락 확산.",
+    "resolution": [
+      "주문 업데이트 쿼리에 조건 인덱스 추가 및 실행계획 점검",
+      "트랜잭션 범위를 최소 단위로 축소 (batch commit 간격 조정)",
+      "장 시작 전 커넥션/락 상태 사전 점검 체크리스트 수행",
+      "DB Lock 대기 모니터링 대시보드에 실시간 알람 연동"
+    ],
+    "severity": "CRITICAL",
+    "avg_resolution_min": 30
+  },
+  {
+    "id": "INC-2024-0317",
+    "title": "야간 정산 배치 실패 - OutOfMemoryError",
+    "system": "계정계 배치 (정산/원장)",
+    "keywords": ["outofmemoryerror", "heap space", "배치 실패", "정산", "batch job"],
+    "symptoms": "야간 정산 배치가 대용량 거래 데이터 처리 중 java.lang.OutOfMemoryError: Java heap space 발생 후 비정상 종료.",
+    "root_cause": "일별 거래량 증가에도 JVM heap 설정이 그대로 유지되었고, 배치 로직이 전체 데이터를 한 번에 메모리에 적재하는 방식이었음.",
+    "resolution": [
+      "배치 처리 방식을 청크(chunk) 단위 스트리밍 처리로 변경",
+      "JVM heap 사이즈를 실측 데이터 기준으로 재산정",
+      "실패 지점부터 재시작 가능한 체크포인트 로직 추가",
+      "익일 업무 영향 최소화를 위한 재처리 SOP 문서화"
+    ],
+    "severity": "CRITICAL",
+    "avg_resolution_min": 90
+  },
+  {
+    "id": "INC-2024-0402",
+    "title": "OpenAPI 인증 실패 - 토큰 만료 정책 변경",
+    "system": "OpenAPI 플랫폼",
+    "keywords": ["401", "unauthorized", "token expired", "인증 실패", "openapi", "access token"],
+    "symptoms": "외부 제휴사 연동 OpenAPI 호출 시 401 Unauthorized 응답이 급증. 정상 발급된 토큰도 조기 만료 처리됨.",
+    "root_cause": "인증 서버의 토큰 만료 정책(TTL)이 사전 공지 없이 변경되어 클라이언트 측 캐시된 토큰과 불일치 발생.",
+    "resolution": [
+      "인증 서버 정책 변경 이력 확인 및 담당팀 공유",
+      "클라이언트 토큰 캐시 TTL을 서버 정책과 동기화",
+      "제휴사 대상 긴급 공지 발송 및 임시 토큰 재발급 가이드 제공",
+      "정책 변경 시 사전 통지 프로세스 개선 요청"
+    ],
+    "severity": "MEDIUM",
+    "avg_resolution_min": 60
+  },
+  {
+    "id": "INC-2024-0511",
+    "title": "계정계 원장 동기화 오류 - 메시지 큐 적체",
+    "system": "계정계 (Core Banking)",
+    "keywords": ["mq", "message queue", "적체", "동기화 오류", "원장", "consumer lag"],
+    "symptoms": "원장 동기화용 메시지 큐에 consumer lag이 지속 증가하며 일부 거래 원장 반영이 수 분 이상 지연됨.",
+    "root_cause": "컨슈머 인스턴스 중 하나가 예외 처리 미흡으로 메시지 처리 중 무한 재시도 루프에 빠져 전체 처리량 저하.",
+    "resolution": [
+      "문제 컨슈머 인스턴스 격리 및 재기동",
+      "예외 발생 메시지는 DLQ(Dead Letter Queue)로 격리하도록 로직 보완",
+      "컨슈머 처리량 대비 파티션/컨슈머 수 재조정",
+      "consumer lag 임계치 초과 시 자동 알람 설정"
+    ],
+    "severity": "HIGH",
+    "avg_resolution_min": 40
+  },
+  {
+    "id": "INC-2024-0623",
+    "title": "웹 트레이딩 화면 응답 지연 - CDN 캐시 미스",
+    "system": "웹 트레이딩 (대고객 채널)",
+    "keywords": ["cdn", "cache miss", "응답 지연", "정적 리소스", "웹 트레이딩"],
+    "symptoms": "웹 트레이딩 화면의 정적 리소스 로딩 속도가 저하되며 전체 페이지 응답시간이 평소 대비 3배 이상 증가.",
+    "root_cause": "CDN 설정 배포 시 캐시 무효화(purge) 범위가 과도하게 적용되어 캐시 히트율이 급감.",
+    "resolution": [
+      "CDN 캐시 히트율 실시간 확인 및 원인 배포 롤백",
+      "캐시 무효화 배포 절차에 범위 검증 단계 추가",
+      "정적 리소스 버전 관리(해시 기반 파일명)로 불필요한 전체 purge 방지",
+      "CDN 캐시 히트율 모니터링 알람 신설"
+    ],
+    "severity": "MEDIUM",
+    "avg_resolution_min": 35
+  },
+  {
+    "id": "INC-2024-0708",
+    "title": "RPA 자동매매 연동 오류 - 외부 시세 API Timeout",
+    "system": "RPA / 디지털 자동화",
+    "keywords": ["timeout", "외부 api", "시세", "rpa", "read timed out"],
+    "symptoms": "RPA 기반 자동 주문 프로세스가 외부 시세 제공 API 응답 지연으로 Read timed out 오류와 함께 중단됨.",
+    "root_cause": "외부 시세 API 제공사의 일시적 트래픽 급증으로 응답 지연 발생, RPA 측 타임아웃/재시도 로직 미흡.",
+    "resolution": [
+      "RPA 프로세스에 지수 백오프(exponential backoff) 재시도 로직 추가",
+      "외부 API 이중화(백업 시세 소스) 연동 검토",
+      "타임아웃 발생 시 자동 알림 및 수동 개입 프로세스 마련",
+      "외부사 SLA 및 장애 이력 정기 점검"
+    ],
+    "severity": "MEDIUM",
+    "avg_resolution_min": 25
+  },
+  {
+    "id": "INC-2024-0819",
+    "title": "대고객 알림톡 발송 실패 - 발송사 Rate Limit 초과",
+    "system": "대고객 알림 채널",
+    "keywords": ["rate limit", "429", "알림톡 실패", "발송 실패", "gateway"],
+    "symptoms": "체결/입출금 알림톡 발송 시 429 Too Many Requests 응답 다수 발생하며 알림 발송 성공률이 급락.",
+    "root_cause": "이벤트성 대량 발송 트래픽이 3rd party 발송 게이트웨이의 초당 요청 제한(Rate Limit)을 초과.",
+    "resolution": [
+      "발송 큐잉 및 초당 발송량 제어(throttling) 로직 적용",
+      "발송사와 Rate Limit 상향 협의",
+      "실패 건 재발송 큐 별도 관리",
+      "발송 성공률 실시간 모니터링 및 임계치 알람 설정"
+    ],
+    "severity": "MEDIUM",
+    "avg_resolution_min": 30
+  }
+]

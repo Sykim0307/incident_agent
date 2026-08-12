@@ -1,0 +1,5 @@
+2026-08-12 09:03:41 ERROR [was-worker-12] java.sql.SQLException: Cannot get a connection, pool error Timeout waiting for idle object
+2026-08-12 09:03:41 WARN  [was-worker-07] HTS login response time = 15420ms (threshold 3000ms)
+2026-08-12 09:03:42 ERROR [was-worker-03] java.sql.SQLException: Cannot get a connection, pool error Timeout waiting for idle object
+2026-08-12 09:03:44 WARN  [monitor] active_connections=200/200 (max pool size reached)
+2026-08-12 09:03:50 ERROR [was-worker-19] Connection pool exhausted, rejecting new login requests

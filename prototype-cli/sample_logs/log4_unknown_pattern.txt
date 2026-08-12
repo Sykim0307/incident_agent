@@ -1,0 +1,3 @@
+2026-08-12 14:12:09 ERROR [file-svc] java.io.IOException: No space left on device
+2026-08-12 14:12:10 ERROR [file-svc] failed to write daily statement PDF to /data/reports/
+2026-08-12 14:12:11 WARN  [monitor] disk usage /data partition = 99.8%
