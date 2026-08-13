@@ -46,6 +46,9 @@ export default function NotificationPanel({ incidentEventId, initialNotification
           시뮬레이션 · 실제 발송 아님
         </span>
       </div>
+      <p className="text-[11px] text-ink-faint">
+        * 담당자 이름·연락처는 모두 데모용 가상 인물입니다.
+      </p>
 
       <div className="border border-rule rounded bg-surface divide-y divide-rule">
         {notifications.length === 0 && (

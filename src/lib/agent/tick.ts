@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractErrorSignatures } from "@/lib/agent/signatures";
 import { searchSimilarIncidents, MATCH_THRESHOLD } from "@/lib/agent/similarity";
-import { pickRandomLog } from "@/lib/agent/scenarios";
+import { pickRandomLog, type LogTemplate } from "@/lib/agent/scenarios";
 import { refineIncidentNarrative } from "@/lib/claude";
 import { notifyOnCall } from "@/lib/agent/notify";
 import type { IncidentKB, MtsOrder } from "@/lib/types";
@@ -18,15 +18,24 @@ export interface TickResult {
 }
 
 /**
- * One "heartbeat" of the 24/7 monitoring agent: emits one log line and, if it's
- * abnormal, runs the full detect -> match -> checklist -> (optional) impact
- * simulation -> LLM narrative pipeline. Called by both the Vercel Cron route
- * and the manual "지금 로그 생성" demo button, so the live demo never depends
- * on cron timing.
+ * One "heartbeat" of the 24/7 monitoring agent: picks a random scenario log
+ * and ingests it. Called by both the Vercel Cron route and the manual
+ * "지금 로그 생성" demo button, so the live demo never depends on cron timing.
  */
 export async function runMonitoringTick(supabase: SupabaseClient): Promise<TickResult> {
-  const template = pickRandomLog();
+  return ingestLog(supabase, pickRandomLog());
+}
 
+/**
+ * Emits one log line and, if it's abnormal, runs the full detect -> match ->
+ * checklist -> (optional) impact simulation -> notify -> LLM narrative
+ * pipeline. Shared by the random-scenario tick above and the bulk sample-log
+ * upload endpoint, which ingests user-supplied lines the same way.
+ */
+export async function ingestLog(
+  supabase: SupabaseClient,
+  template: LogTemplate
+): Promise<TickResult> {
   const { data: insertedLog, error: logError } = await supabase
     .from("system_logs")
     .insert({

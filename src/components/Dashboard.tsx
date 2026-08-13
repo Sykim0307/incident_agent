@@ -9,6 +9,8 @@ import TopologyDiagram from "@/components/TopologyDiagram";
 import IncidentTrendSparkline from "@/components/IncidentTrendSparkline";
 import OnCallRoster from "@/components/OnCallRoster";
 import SystemHealthBar from "@/components/SystemHealthBar";
+import LiveLogTicker from "@/components/LiveLogTicker";
+import ResourceMonitor from "@/components/ResourceMonitor";
 import IncidentSidebar from "@/components/IncidentSidebar";
 import IncidentDetailPanel from "@/components/IncidentDetailPanel";
 import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
@@ -57,6 +59,8 @@ export default function Dashboard({
   const [events, setEvents] = useState<IncidentEvent[]>(initialEvents);
   const [autoRunning, setAutoRunning] = useState(false);
   const [ticking, setTicking] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
   const [testLog, setTestLog] = useState(
     "ERROR [order-svc] Lock wait timeout exceeded; try restarting transaction\nERROR [order-svc] deadlock detected while updating ORD_STATUS table"
   );
@@ -173,6 +177,35 @@ export default function Dashboard({
     }
   }
 
+  async function handleBulkUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split("\n").filter((l) => l.trim().length > 0);
+    if (lines.length === 0) return;
+
+    setBulkUploading(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/demo/bulk-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lines }),
+      });
+      const data = await res.json();
+      setBulkResult(
+        data.error
+          ? data.error
+          : `${data.inserted}건 업로드 · 장애 ${data.incidentsDetected}건 감지`
+      );
+    } catch {
+      setBulkResult("업로드 실패");
+    } finally {
+      setBulkUploading(false);
+    }
+  }
+
   async function runTest() {
     setTesting(true);
     setTestResult(null);
@@ -283,8 +316,6 @@ export default function Dashboard({
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
-      <SystemHealthBar events={events} />
-
       <section className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -337,8 +368,24 @@ export default function Dashboard({
             >
               {replayEnabled ? "순환 재생 중 (비용 없음)" : "순환 재생 꺼짐"}
             </button>
+            <label
+              className={`rounded border border-rule bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2 transition-colors cursor-pointer ${
+                bulkUploading ? "opacity-50 pointer-events-none" : ""
+              }`}
+            >
+              {bulkUploading ? "업로드 중…" : "샘플 로그 데이터 업로드"}
+              <input
+                type="file"
+                accept=".log,.txt,.csv"
+                onChange={handleBulkUpload}
+                disabled={bulkUploading}
+                className="hidden"
+              />
+            </label>
           </div>
         </div>
+
+        {bulkResult && <p className="text-xs text-ink-faint">{bulkResult}</p>}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatTile label="최근 로그" value={counts.total} />
@@ -349,6 +396,12 @@ export default function Dashboard({
 
         <OnCallRoster contacts={onCallContacts} />
       </section>
+
+      <LiveLogTicker logs={logs} replayId={replayEnabled ? replayId : null} />
+
+      <SystemHealthBar events={events} />
+
+      <ResourceMonitor />
 
       <section className="flex flex-col lg:flex-row gap-6 items-start">
         {/* nowMs starts null and fills in ~1s after mount (see effect above); IncidentSidebar/IncidentGroupCard render immediately and only the relative-time text waits on it. */}

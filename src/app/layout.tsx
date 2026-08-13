@@ -5,8 +5,21 @@ import NavigationProgress from "@/components/NavigationProgress";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://incidentagent-five.vercel.app"),
   title: "Incident Response Copilot",
   description: "시스템 개발 및 운영 직군을 위한 24/7 장애 대응 지원 Agent",
+  openGraph: {
+    title: "Incident Response Copilot",
+    description: "증권 IT 시스템을 위한 24/7 장애 대응 지원 Agent",
+    siteName: "Incident Response Copilot",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Incident Response Copilot",
+    description: "증권 IT 시스템을 위한 24/7 장애 대응 지원 Agent",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
