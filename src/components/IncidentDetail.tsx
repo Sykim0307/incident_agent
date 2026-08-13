@@ -72,6 +72,7 @@ export default function IncidentDetail({
   const [autoConfirming, setAutoConfirming] = useState(false);
   const [autoBusy, setAutoBusy] = useState(false);
   const [autoLog, setAutoLog] = useState<string[]>([]);
+  const [showManualChecklist, setShowManualChecklist] = useState(false);
 
   const [completeConfirming, setCompleteConfirming] = useState(false);
   const [completeNote, setCompleteNote] = useState("");
@@ -99,6 +100,12 @@ export default function IncidentDetail({
         new Date(event.detected_at).getTime()
       : null;
   const nextAction = steps.find((s) => !s.is_done);
+  const checklistVisible =
+    showManualChecklist ||
+    autoBusy ||
+    autoConfirming ||
+    isResolved ||
+    steps.some((s) => s.is_done);
 
   async function toggleStep(step: ChecklistStep) {
     setBusy(`step-${step.step_no}`);
@@ -396,13 +403,21 @@ export default function IncidentDetail({
             실행합니다. 한 단계씩 실행되는 과정을 실시간으로 보여드립니다.
           </p>
           {!autoConfirming && !autoBusy && (
-            <div>
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => setAutoConfirming(true)}
                 className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90"
               >
                 체크리스트 → 검증 → 복구 자동 실행
               </button>
+              {!checklistVisible && (
+                <button
+                  onClick={() => setShowManualChecklist(true)}
+                  className="text-xs text-ink-faint underline hover:text-ink"
+                >
+                  수동으로 체크리스트 보기
+                </button>
+              )}
             </div>
           )}
           {autoConfirming && !autoBusy && (
@@ -437,95 +452,121 @@ export default function IncidentDetail({
         </section>
       )}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          대응 체크리스트 · 실시간 조치 확인
-        </h2>
-        <ol className="flex flex-col gap-2">
-          {steps.map((step) => (
-            <li
-              key={step.step_no}
-              className="flex items-start gap-3 border border-rule rounded bg-surface p-3"
-            >
-              <input
-                type="checkbox"
-                checked={step.is_done}
-                disabled={busy === `step-${step.step_no}` || autoBusy}
-                onChange={() => toggleStep(step)}
-                className="mt-1 h-4 w-4 accent-[var(--accent)]"
-              />
-              <div className="flex-1">
-                <p className={`text-sm ${step.is_done ? "text-ink-faint line-through" : "text-ink"}`}>
-                  {step.step_no}. {step.description}
-                </p>
-                {step.is_done && step.verification_result && (
-                  <p className="text-xs text-sev-ok mt-1">✓ {step.verification_result}</p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          테스트 검증 · 시스템 원복
-        </h2>
-        <p className="text-sm text-ink-soft">
-          체크리스트 조치가 끝나면 테스트 데이터로 정상 작동 여부를 확인하고,
-          샌드박스 데이터를 장애 발생 이전 상태로 복구합니다.
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={runVerify}
-            disabled={!allStepsDone || busy === "verify" || autoBusy}
-            className="rounded border border-rule bg-surface px-4 py-2 text-sm font-medium hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {busy === "verify" ? "테스트 중…" : "테스트 데이터로 검증"}
-          </button>
-          <button
-            onClick={runRecover}
-            disabled={!verifyResult || busy === "recover" || isResolved || autoBusy}
-            className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {busy === "recover" ? "복구 중…" : "시스템 복구 실행 (샌드박스)"}
-          </button>
-        </div>
-
-        {verifyResult && (
-          <div
-            className={`rounded border p-3 text-sm ${
-              verifyResult.passed
-                ? "border-sev-ok/40 bg-sev-ok-bg text-sev-ok"
-                : "border-sev-critical/40 bg-sev-critical-bg text-sev-critical"
-            }`}
-          >
-            {verifyResult.passed ? "✓ 검증 통과" : "✗ 검증 실패"} — {verifyResult.detail}
-          </div>
-        )}
-
-        {recoverResult && (
-          <div
-            className={`rounded border p-3 text-sm ${
-              recoverResult.result === "success"
-                ? "border-sev-ok/40 bg-sev-ok-bg text-sev-ok"
-                : "border-sev-critical/40 bg-sev-critical-bg text-sev-critical"
-            }`}
-          >
-            {recoverResult.detail}
-          </div>
-        )}
-
-        {recoveryActions.length > 0 && (
-          <div className="flex flex-col gap-1.5 mt-2">
-            {recoveryActions.map((a) => (
-              <div key={a.id} className="text-xs text-ink-faint">
-                {new Date(a.executed_at).toLocaleTimeString("ko-KR")} · {a.result} · {a.detail}
-              </div>
+      {checklistVisible && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            대응 체크리스트 · 실시간 조치 확인
+          </h2>
+          <ol className="flex flex-col gap-2">
+            {steps.map((step) => (
+              <li
+                key={step.step_no}
+                className="flex items-start gap-3 border border-rule rounded bg-surface p-3"
+              >
+                <input
+                  type="checkbox"
+                  checked={step.is_done}
+                  disabled={busy === `step-${step.step_no}` || autoBusy}
+                  onChange={() => toggleStep(step)}
+                  className="mt-1 h-4 w-4 accent-[var(--accent)]"
+                />
+                <div className="flex-1">
+                  <p
+                    className={`text-sm ${step.is_done ? "text-ink-faint line-through" : "text-ink"}`}
+                  >
+                    {step.step_no}. {step.description}
+                  </p>
+                  {step.is_done && step.verification_result && (
+                    <p className="text-xs text-sev-ok mt-1">✓ {step.verification_result}</p>
+                  )}
+                </div>
+              </li>
             ))}
+          </ol>
+        </section>
+      )}
+
+      {checklistVisible && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            테스트 검증 · 시스템 원복
+          </h2>
+          <p className="text-sm text-ink-soft">
+            체크리스트 조치가 끝나면 테스트 데이터로 정상 작동 여부를 확인하고,
+            샌드박스 데이터를 장애 발생 이전 상태로 복구합니다.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={runVerify}
+              disabled={!allStepsDone || busy === "verify" || autoBusy}
+              className="rounded border border-rule bg-surface px-4 py-2 text-sm font-medium hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {busy === "verify" ? "테스트 중…" : "테스트 데이터로 검증"}
+            </button>
+            <button
+              onClick={runRecover}
+              disabled={!verifyResult || busy === "recover" || isResolved || autoBusy}
+              className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {busy === "recover" ? "복구 중…" : "시스템 복구 실행 (샌드박스)"}
+            </button>
           </div>
-        )}
-      </section>
+
+          {verifyResult && (
+            <div
+              className={`rounded border p-3 text-sm ${
+                verifyResult.passed
+                  ? "border-sev-ok/40 bg-sev-ok-bg text-sev-ok"
+                  : "border-sev-critical/40 bg-sev-critical-bg text-sev-critical"
+              }`}
+            >
+              {verifyResult.passed ? "✓ 검증 통과" : "✗ 검증 실패"} — {verifyResult.detail}
+            </div>
+          )}
+
+          {recoverResult && (
+            <div
+              className={`rounded border p-3 text-sm ${
+                recoverResult.result === "success"
+                  ? "border-sev-ok/40 bg-sev-ok-bg text-sev-ok"
+                  : "border-sev-critical/40 bg-sev-critical-bg text-sev-critical"
+              }`}
+            >
+              {recoverResult.detail}
+            </div>
+          )}
+
+          {recoveryActions.length > 0 && (
+            <div className="flex flex-col gap-1.5 mt-2">
+              {recoveryActions.map((a) => (
+                <div key={a.id} className="text-xs text-ink-faint">
+                  {new Date(a.executed_at).toLocaleTimeString("ko-KR")} · {a.result} · {a.detail}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isResolved && recoveryActions.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-2 pt-3 border-t border-rule">
+              <span className="text-xs text-ink-faint">조치 완료 후에도 필요하다면:</span>
+              <button
+                onClick={runVerify}
+                disabled={busy === "verify"}
+                className="rounded border border-rule bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-2 disabled:opacity-50"
+              >
+                {busy === "verify" ? "검증 중…" : "다시 검증하기"}
+              </button>
+              <button
+                onClick={runRecover}
+                disabled={busy === "recover"}
+                className="rounded border border-rule bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-2 disabled:opacity-50"
+              >
+                {busy === "recover" ? "되돌리는 중…" : "이전 상태로 되돌리기"}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       {!isResolved && (
         <section className="flex flex-col gap-3">

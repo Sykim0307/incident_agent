@@ -29,6 +29,7 @@ export default function SystemHealthBar({ events }: { events: IncidentEvent[] })
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {health.map((h) => {
           const colors = h.severity ? SEVERITY_COLOR_VARS[h.severity] : null;
+          const isUrgent = h.severity === "CRITICAL" || h.severity === "HIGH";
           return (
             <div
               key={h.system}
@@ -40,7 +41,9 @@ export default function SystemHealthBar({ events }: { events: IncidentEvent[] })
               title={h.severity ? `${h.system}: ${h.severity} 장애 ${h.openCount}건` : `${h.system}: 정상`}
             >
               <span
-                className="inline-block w-2 h-2 rounded-full flex-shrink-0 live-dot"
+                className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                  isUrgent ? "alert-blink" : "live-dot"
+                }`}
                 style={{ backgroundColor: colors?.fg ?? "var(--sev-ok)" }}
               />
               <span className="text-xs font-medium truncate" style={{ color: colors?.fg ?? "var(--ink-soft)" }}>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { createAnonSupabaseClient } from "@/lib/supabase/server";
 import type { IncidentKB } from "@/lib/types";
@@ -12,10 +13,20 @@ export default async function KnowledgeBasePage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">장애 지식베이스</h1>
+        <h1 className="text-2xl font-semibold">과거 장애 사례</h1>
         <p className="text-sm text-ink-soft mt-1">
-          Agent가 새 로그와 비교하는 과거 장애 사례 {items.length}건입니다. 실제 운영에서는
-          해결된 신규 장애가 여기 자동으로 누적됩니다.
+          Agent가 새로운 장애를 감지했을 때 원인을 추정하기 위해 비교하는 &quot;참고
+          자료집&quot;입니다. 지금 발생 중인 장애 목록이 아니라, 이미 종료된 과거 사례
+          {items.length}건과 그 대응 방법을 모아둔 것입니다 (실제 운영에서는 새로 해결된
+          장애가 여기 자동으로 누적됩니다). 현재 진행 중인 장애는{" "}
+          <Link href="/" className="text-accent hover:underline">
+            24/7 관제센터
+          </Link>
+          , 전체 발생 기록은{" "}
+          <Link href="/incidents" className="text-accent hover:underline">
+            장애 이력
+          </Link>
+          에서 확인하세요.
         </p>
       </div>
 

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import NavLink from "@/components/NavLink";
+import NavigationProgress from "@/components/NavigationProgress";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,6 +13,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-bg text-ink">
+        <NavigationProgress />
         <header className="border-b border-rule">
           <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-6 flex-wrap">
             <Link href="/" className="flex flex-col gap-0.5">
@@ -25,15 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </span>
             </Link>
             <nav className="flex items-center gap-6 text-[15px] text-ink-soft">
-              <Link href="/" className="hover:text-ink transition-colors">
-                24/7 관제센터
-              </Link>
-              <Link href="/incidents" className="hover:text-ink transition-colors">
-                장애 목록
-              </Link>
-              <Link href="/knowledge-base" className="hover:text-ink transition-colors">
-                장애 지식베이스
-              </Link>
+              <NavLink href="/">24/7 관제센터</NavLink>
+              <NavLink href="/incidents">장애 이력</NavLink>
+              <NavLink href="/knowledge-base">과거 장애 사례</NavLink>
             </nav>
           </div>
         </header>
