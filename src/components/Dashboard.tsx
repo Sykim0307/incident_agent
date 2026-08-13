@@ -420,10 +420,10 @@ export default function Dashboard({
         </div>
       </section>
 
-      <details className="border border-rule rounded bg-surface">
-        <summary className="cursor-pointer select-none p-4 font-mono text-xs uppercase tracking-wide text-ink-faint">
-          실시간 로그 스트림 · 검색 필터 · 시스템 구조도 · 추이 · AI 로그 테스트 (펼치기)
-        </summary>
+      <div className="border border-rule rounded bg-surface">
+        <p className="p-4 font-mono text-xs uppercase tracking-wide text-ink-faint">
+          실시간 로그 스트림 · 검색 필터 · 시스템 구조도 · 추이 · AI 로그 테스트
+        </p>
         <div className="border-t border-rule p-4 md:p-6 flex flex-col gap-8">
           <LogFilterBar
             filters={filters}
@@ -562,7 +562,7 @@ export default function Dashboard({
             )}
           </section>
         </div>
-      </details>
+      </div>
     </div>
   );
 }

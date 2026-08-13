@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import NavLink from "@/components/NavLink";
 import NavigationProgress from "@/components/NavigationProgress";
+import UserMenu from "@/components/UserMenu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,11 +41,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 증권 IT 시스템을 위한 24/7 장애 대응 지원 Agent
               </span>
             </Link>
-            <nav className="flex items-center gap-6 text-[15px] text-ink-soft">
-              <NavLink href="/">24/7 관제센터</NavLink>
-              <NavLink href="/incidents">장애 이력</NavLink>
-              <NavLink href="/knowledge-base">과거 장애 사례</NavLink>
-            </nav>
+            <div className="flex items-center gap-6">
+              <nav className="flex items-center gap-6 text-[15px] text-ink-soft">
+                <NavLink href="/about">소개</NavLink>
+                <NavLink href="/">24/7 관제센터</NavLink>
+                <NavLink href="/incidents">장애 이력</NavLink>
+                <NavLink href="/knowledge-base">과거 장애 사례</NavLink>
+              </nav>
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="flex-1">{children}</main>

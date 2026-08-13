@@ -32,16 +32,13 @@ export default async function KnowledgeBasePage() {
 
       <div className="flex flex-col gap-3">
         {items.map((inc) => (
-          <details
-            key={inc.id}
-            className="border border-rule rounded bg-surface p-4 group"
-          >
-            <summary className="flex items-center gap-2 cursor-pointer flex-wrap list-none">
+          <div key={inc.id} className="border border-rule rounded bg-surface p-4">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs text-ink-faint">{inc.id}</span>
               <SeverityBadge severity={inc.severity} />
               <span className="text-sm font-medium">{inc.title}</span>
               <span className="text-xs text-ink-faint ml-auto">{inc.system_name}</span>
-            </summary>
+            </div>
             <div className="mt-3 flex flex-col gap-3 text-sm text-ink-soft">
               <p>{inc.symptoms}</p>
               <div>
@@ -62,7 +59,7 @@ export default async function KnowledgeBasePage() {
                 평균 해결 시간: {inc.avg_resolution_min}분
               </p>
             </div>
-          </details>
+          </div>
         ))}
       </div>
     </div>

@@ -67,15 +67,15 @@ export default function IncidentHistoryList({ events, kbById, stepsByEvent }: Pr
           const isResolved = event.status === "resolved";
 
           return (
-            <details
+            <div
               key={event.id}
-              className={`border-l-4 border-y border-r rounded bg-surface group ${
+              className={`border-l-4 border-y border-r rounded bg-surface ${
                 isResolved
                   ? "border-l-sev-ok border-y-rule border-r-rule"
                   : "border-l-sev-high border-y-rule border-r-rule"
               }`}
             >
-              <summary className="p-3 cursor-pointer flex items-center gap-2 flex-wrap list-none [&::-webkit-details-marker]:hidden">
+              <div className="p-3 flex items-center gap-2 flex-wrap">
                 <SeverityBadge severity={event.severity} />
                 <StatusBadge status={event.status} />
                 <span
@@ -97,7 +97,7 @@ export default function IncidentHistoryList({ events, kbById, stepsByEvent }: Pr
                 <span className="text-xs text-ink-faint whitespace-nowrap">
                   {new Date(event.detected_at).toLocaleString("ko-KR")}
                 </span>
-              </summary>
+              </div>
               <div className="border-t border-rule p-3 flex flex-col gap-2">
                 {eventSteps.length === 0 ? (
                   <p className="text-xs text-ink-faint">이 장애에는 체크리스트가 없습니다.</p>
@@ -122,7 +122,7 @@ export default function IncidentHistoryList({ events, kbById, stepsByEvent }: Pr
                   상세 페이지에서 조치하기 →
                 </Link>
               </div>
-            </details>
+            </div>
           );
         })}
       </div>
