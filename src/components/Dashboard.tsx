@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { SeverityBadge, StatusBadge } from "@/components/SeverityBadge";
+import { SeverityBadge } from "@/components/SeverityBadge";
 import { StatTile } from "@/components/StatTile";
 import LogFilterBar from "@/components/LogFilterBar";
 import TopologyDiagram from "@/components/TopologyDiagram";
 import IncidentTrendSparkline from "@/components/IncidentTrendSparkline";
 import OnCallRoster from "@/components/OnCallRoster";
 import SystemHealthBar from "@/components/SystemHealthBar";
+import IncidentSidebar from "@/components/IncidentSidebar";
+import IncidentDetailPanel from "@/components/IncidentDetailPanel";
 import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
+import { groupIncidents, sortGroups, type IncidentSortMode } from "@/lib/incidentGroups";
 import type { AnalyzeResult } from "@/lib/agent/analyze";
 import { INCIDENT_LOGS, NORMAL_LOGS, UNKNOWN_PATTERN_LOGS } from "@/lib/agent/scenarios";
 import type { IncidentEvent, IncidentKB, OnCallContact, SystemLog } from "@/lib/types";
@@ -249,6 +251,29 @@ export default function Dashboard({
     );
   }
 
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  useEffect(() => {
+    const clock = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, []);
+
+  const [sortMode, setSortMode] = useState<IncidentSortMode>("severity");
+  const [sidebarKeyword, setSidebarKeyword] = useState("");
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+
+  const groups = useMemo(
+    () => sortGroups(groupIncidents(filteredEvents, kbById), sortMode),
+    [filteredEvents, kbById, sortMode]
+  );
+  // Derived (not stored) so a stale selection from a resolved/filtered-out
+  // group falls back to the top of the list without needing an effect.
+  const effectiveSelectedKey =
+    selectedGroupKey && groups.some((g) => g.key === selectedGroupKey)
+      ? selectedGroupKey
+      : groups[0]?.key ?? null;
+  const selectedGroup = groups.find((g) => g.key === effectiveSelectedKey) ?? null;
+  const selectedEventId = selectedGroup?.representative.id ?? null;
+
   const openEvents = events.filter((e) => e.status !== "resolved");
   const counts = {
     CRITICAL: openEvents.filter((e) => e.severity === "CRITICAL").length,
@@ -325,196 +350,166 @@ export default function Dashboard({
         <OnCallRoster contacts={onCallContacts} />
       </section>
 
-      <LogFilterBar
-        filters={filters}
-        onChange={setFilters}
-        availableSystems={availableSystems}
-        totalLogs={logs.length}
-        shownLogs={filteredLogs.length}
-        totalEvents={events.length}
-        shownEvents={filteredEvents.length}
-      />
-
-      <section className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
-        <div className="flex flex-col gap-3">
-          <div>
-            <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-              실시간 로그 스트림
-            </h2>
-            <p className="text-xs text-ink-faint mt-0.5">
-              모든 시스템에서 발생하는 로그를 실시간으로 보여줍니다.
-            </p>
-          </div>
-          <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
-            {filteredLogs.length === 0 && (
-              <p className="p-4 text-sm text-ink-faint">
-                {logs.length === 0
-                  ? '아직 로그가 없습니다. "지금 로그 1건 생성"을 눌러보세요.'
-                  : "필터 조건에 맞는 로그가 없습니다."}
-              </p>
-            )}
-            {filteredLogs.map((log) => (
-              <div
-                key={log.id}
-                className={`p-3 font-mono text-xs flex gap-3 ${
-                  justArrived.has(log.id) || (replayEnabled && replayId === log.id)
-                    ? "log-row-in"
-                    : ""
-                }`}
-              >
-                <span className="text-ink-faint whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleTimeString("ko-KR")}
-                </span>
-                <span className={`whitespace-nowrap ${LEVEL_STYLE[log.level]}`}>
-                  [{log.level}]
-                </span>
-                <span className="text-ink-faint whitespace-nowrap">{log.source_system}</span>
-                <span className="text-ink truncate">{log.message}</span>
-              </div>
-            ))}
-          </div>
+      <section className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* nowMs starts null and fills in ~1s after mount (see effect above); IncidentSidebar/IncidentGroupCard render immediately and only the relative-time text waits on it. */}
+        <IncidentSidebar
+          groups={groups}
+          selectedKey={effectiveSelectedKey}
+          onSelect={(g) => setSelectedGroupKey(g.key)}
+          nowMs={nowMs}
+          sortMode={sortMode}
+          onSortModeChange={setSortMode}
+          keyword={sidebarKeyword}
+          onKeywordChange={setSidebarKeyword}
+        />
+        <div className="flex-1 min-w-0 w-full">
+          <IncidentDetailPanel eventId={selectedEventId} />
         </div>
+      </section>
 
-        <div className="flex flex-col gap-3">
-          <div>
-            <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-              감지된 장애
-            </h2>
-            <p className="text-xs text-ink-faint mt-0.5">
-              에러 로그에서 Agent가 자동으로 감지한 장애입니다. 클릭하면 대응 화면으로
-              이동합니다.
-            </p>
-          </div>
-          <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
-            {filteredEvents.length === 0 && (
-              <p className="p-4 text-sm text-ink-faint">
-                {events.length === 0
-                  ? "아직 감지된 장애가 없습니다."
-                  : "필터 조건에 맞는 장애가 없습니다."}
+      <details className="border border-rule rounded bg-surface">
+        <summary className="cursor-pointer select-none p-4 font-mono text-xs uppercase tracking-wide text-ink-faint">
+          실시간 로그 스트림 · 검색 필터 · 시스템 구조도 · 추이 · AI 로그 테스트 (펼치기)
+        </summary>
+        <div className="border-t border-rule p-4 md:p-6 flex flex-col gap-8">
+          <LogFilterBar
+            filters={filters}
+            onChange={setFilters}
+            availableSystems={availableSystems}
+            totalLogs={logs.length}
+            shownLogs={filteredLogs.length}
+            totalEvents={events.length}
+            shownEvents={filteredEvents.length}
+          />
+
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+                실시간 로그 스트림
+              </h2>
+              <p className="text-xs text-ink-faint mt-0.5">
+                모든 시스템에서 발생하는 로그를 실시간으로 보여줍니다.
               </p>
-            )}
-            {filteredEvents.map((event) => {
-              const kb = event.matched_incident_id
-                ? kbById.get(event.matched_incident_id)
-                : null;
-              return (
-                <Link
-                  key={event.id}
-                  href={`/incidents/${event.id}`}
-                  className="block p-3 hover:bg-surface-2 transition-colors"
+            </div>
+            <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[420px] overflow-y-auto">
+              {filteredLogs.length === 0 && (
+                <p className="p-4 text-sm text-ink-faint">
+                  {logs.length === 0
+                    ? '아직 로그가 없습니다. "지금 로그 1건 생성"을 눌러보세요.'
+                    : "필터 조건에 맞는 로그가 없습니다."}
+                </p>
+              )}
+              {filteredLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className={`p-3 font-mono text-xs flex gap-3 ${
+                    justArrived.has(log.id) || (replayEnabled && replayId === log.id)
+                      ? "log-row-in"
+                      : ""
+                  }`}
                 >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <SeverityBadge severity={event.severity} />
-                    <StatusBadge status={event.status} />
-                    {event.source_system && (
-                      <span className="text-xs text-ink-faint">{event.source_system}</span>
-                    )}
-                    <span className="text-xs text-ink-faint ml-auto">
-                      {new Date(event.detected_at).toLocaleTimeString("ko-KR")}
-                    </span>
-                  </div>
-                  <p className="text-sm mt-1.5">
-                    {kb ? kb.title : "신규 패턴 (지식베이스에 없음)"}
-                  </p>
-                  {event.similarity_score != null && kb && (
-                    <p className="text-xs text-ink-faint mt-0.5">
-                      유사도 {(event.similarity_score * 100).toFixed(0)}%
-                    </p>
-                  )}
-                </Link>
-              );
-            })}
+                  <span className="text-ink-faint whitespace-nowrap">
+                    {new Date(log.created_at).toLocaleTimeString("ko-KR")}
+                  </span>
+                  <span className={`whitespace-nowrap ${LEVEL_STYLE[log.level]}`}>
+                    [{log.level}]
+                  </span>
+                  <span className="text-ink-faint whitespace-nowrap">{log.source_system}</span>
+                  <span className="text-ink truncate">{log.message}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section className="grid lg:grid-cols-2 gap-8">
-        <TopologyDiagram
-          events={events}
-          latestSourceSystem={logs[0]?.source_system ?? null}
-          onSelectSystem={selectSystem}
-        />
-        <IncidentTrendSparkline events={events} />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          AI 로그 자동 분석 (Agent 동작 확인)
-        </h2>
-        <p className="text-sm text-ink-soft">
-          로그를 붙여넣거나 파일을 업로드하면 Agent가 에러 시그니처 추출 → 과거 장애
-          사례 유사도 비교 → 심각도 판정 → 체크리스트 생성까지 실제 분석 파이프라인을
-          그대로 실행합니다. 샘플 로그로 Agent가 정상 동작하는지 빠르게 확인할 수 있고,
-          저장되지 않는 읽기 전용 테스트입니다.
-        </p>
-        <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-ink-faint">샘플 로그:</span>
-          {SAMPLE_LOGS.map((sample) => (
-            <button
-              key={sample.label}
-              onClick={() => setTestLog(sample.value)}
-              className="rounded border border-rule bg-surface px-2.5 py-1 text-ink-soft hover:bg-surface-2"
-            >
-              {sample.label}
-            </button>
-          ))}
-          <label className="ml-auto flex items-center gap-2 text-ink-faint cursor-pointer">
-            로그 파일 업로드
-            <input
-              type="file"
-              accept=".log,.txt"
-              onChange={handleFileUpload}
-              className="text-xs max-w-[10rem]"
+          <section className="grid lg:grid-cols-2 gap-8">
+            <TopologyDiagram
+              events={events}
+              latestSourceSystem={logs[0]?.source_system ?? null}
+              onSelectSystem={selectSystem}
             />
-          </label>
-        </div>
-        <textarea
-          value={testLog}
-          onChange={(e) => setTestLog(e.target.value)}
-          rows={4}
-          className="w-full rounded border border-rule bg-surface p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-accent"
-        />
-        <div className="flex items-center gap-3">
-          <button
-            onClick={runTest}
-            disabled={testing}
-            className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {testing ? "AI 분석 중…" : "AI 분석 시작"}
-          </button>
-          {testing && analyzingStage && (
-            <span className="text-xs text-ink-faint flex items-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent live-dot" />
-              {analyzingStage}
-            </span>
-          )}
-        </div>
-        {testResult && (
-          <div className="border border-rule rounded bg-surface p-4 text-sm flex flex-col gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <SeverityBadge severity={testResult.severity} />
-              {testResult.matched && (
-                <span className="text-ink-soft">
-                  {testResult.matched.title} (유사도 {(testResult.score * 100).toFixed(0)}%)
+            <IncidentTrendSparkline events={events} />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+              AI 로그 자동 분석 (Agent 동작 확인)
+            </h2>
+            <p className="text-sm text-ink-soft">
+              로그를 붙여넣거나 파일을 업로드하면 Agent가 에러 시그니처 추출 → 과거 장애
+              사례 유사도 비교 → 심각도 판정 → 체크리스트 생성까지 실제 분석 파이프라인을
+              그대로 실행합니다. 샘플 로그로 Agent가 정상 동작하는지 빠르게 확인할 수 있고,
+              저장되지 않는 읽기 전용 테스트입니다.
+            </p>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-ink-faint">샘플 로그:</span>
+              {SAMPLE_LOGS.map((sample) => (
+                <button
+                  key={sample.label}
+                  onClick={() => setTestLog(sample.value)}
+                  className="rounded border border-rule bg-surface px-2.5 py-1 text-ink-soft hover:bg-surface-2"
+                >
+                  {sample.label}
+                </button>
+              ))}
+              <label className="ml-auto flex items-center gap-2 text-ink-faint cursor-pointer">
+                로그 파일 업로드
+                <input
+                  type="file"
+                  accept=".log,.txt"
+                  onChange={handleFileUpload}
+                  className="text-xs max-w-[10rem]"
+                />
+              </label>
+            </div>
+            <textarea
+              value={testLog}
+              onChange={(e) => setTestLog(e.target.value)}
+              rows={4}
+              className="w-full rounded border border-rule bg-surface p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={runTest}
+                disabled={testing}
+                className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {testing ? "AI 분석 중…" : "AI 분석 시작"}
+              </button>
+              {testing && analyzingStage && (
+                <span className="text-xs text-ink-faint flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent live-dot" />
+                  {analyzingStage}
                 </span>
               )}
             </div>
-            <p className="text-xs text-ink-faint">
-              감지된 시그니처:{" "}
-              {testResult.detectedSignatures.length > 0
-                ? testResult.detectedSignatures.join(", ")
-                : "없음"}
-            </p>
-            <ol className="list-decimal list-inside text-sm flex flex-col gap-1 mt-1">
-              {testResult.checklist.map((item, i) => (
-                <li key={i} className="text-ink-soft">
-                  {item}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-      </section>
+            {testResult && (
+              <div className="border border-rule rounded bg-surface p-4 text-sm flex flex-col gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SeverityBadge severity={testResult.severity} />
+                  {testResult.matched && (
+                    <span className="text-ink-soft">
+                      {testResult.matched.title} (유사도 {(testResult.score * 100).toFixed(0)}%)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-ink-faint">
+                  감지된 시그니처:{" "}
+                  {testResult.detectedSignatures.length > 0
+                    ? testResult.detectedSignatures.join(", ")
+                    : "없음"}
+                </p>
+                <ol className="list-decimal list-inside text-sm flex flex-col gap-1 mt-1">
+                  {testResult.checklist.map((item, i) => (
+                    <li key={i} className="text-ink-soft">
+                      {item}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </section>
+        </div>
+      </details>
     </div>
   );
 }

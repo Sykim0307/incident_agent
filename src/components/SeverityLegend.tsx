@@ -3,8 +3,8 @@ import { SEVERITY_COLOR_VARS } from "@/lib/systemHealth";
 const ENTRIES: { key: string; label: string; desc: string }[] = [
   { key: "CRITICAL", label: "CRITICAL (빨강)", desc: "즉시 조치 필요" },
   { key: "HIGH", label: "HIGH (주황/노랑)", desc: "긴급 대응 필요" },
-  { key: "MEDIUM", label: "MEDIUM (파랑)", desc: "확인 및 대응 필요" },
-  { key: "LOW", label: "LOW (초록)", desc: "경미함 · 정상 범위" },
+  { key: "MEDIUM", label: "MEDIUM (중립 회색)", desc: "확인 및 대응 필요" },
+  { key: "LOW", label: "LOW (연한 회색)", desc: "경미함 · 낮은 우선순위" },
   { key: "UNKNOWN", label: "UNKNOWN (회색)", desc: "신규 패턴 · 에스컬레이션" },
 ];
 

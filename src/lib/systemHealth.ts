@@ -24,7 +24,7 @@ export const SEVERITY_COLOR_VARS: Record<string, { fg: string; bg: string }> = {
   CRITICAL: { fg: "var(--sev-critical)", bg: "var(--sev-critical-bg)" },
   HIGH: { fg: "var(--sev-high)", bg: "var(--sev-high-bg)" },
   MEDIUM: { fg: "var(--sev-medium)", bg: "var(--sev-medium-bg)" },
-  LOW: { fg: "var(--sev-ok)", bg: "var(--sev-ok-bg)" },
+  LOW: { fg: "var(--sev-low)", bg: "var(--sev-low-bg)" },
   UNKNOWN: { fg: "var(--sev-unknown)", bg: "var(--sev-unknown-bg)" },
 };
 

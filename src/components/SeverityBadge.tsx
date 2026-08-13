@@ -2,7 +2,7 @@ const STYLES: Record<string, string> = {
   CRITICAL: "bg-sev-critical-bg text-sev-critical",
   HIGH: "bg-sev-high-bg text-sev-high",
   MEDIUM: "bg-sev-medium-bg text-sev-medium",
-  LOW: "bg-sev-ok-bg text-sev-ok",
+  LOW: "bg-sev-low-bg text-sev-low",
   UNKNOWN: "bg-sev-unknown-bg text-sev-unknown",
 };
 

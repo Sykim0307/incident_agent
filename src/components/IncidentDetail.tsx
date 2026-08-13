@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SeverityBadge, StatusBadge } from "@/components/SeverityBadge";
+import { StatTile } from "@/components/StatTile";
 import IncidentImpact from "@/components/IncidentImpact";
 import NotificationPanel from "@/components/NotificationPanel";
+import { formatDuration } from "@/lib/time";
 import type {
   ChecklistStep,
   IncidentEvent,
@@ -36,6 +38,7 @@ interface Props {
   accounts: LedgerAccount[];
   currentOrders: MtsOrder[];
   notifications: (NotificationRecord & { on_call_contacts: { name: string; role: string } | null })[];
+  hideBackLink?: boolean;
 }
 
 export default function IncidentDetail({
@@ -48,6 +51,7 @@ export default function IncidentDetail({
   accounts,
   currentOrders,
   notifications,
+  hideBackLink,
 }: Props) {
   const [steps, setSteps] = useState(initialSteps);
   const [status, setStatus] = useState(event.status);
@@ -77,8 +81,24 @@ export default function IncidentDetail({
   const [reportGenerating, setReportGenerating] = useState(false);
   const [reportCopied, setReportCopied] = useState(false);
 
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const allStepsDone = steps.length > 0 && steps.every((s) => s.is_done);
   const isResolved = status === "resolved";
+
+  const affectedUsers = new Set(snapshotOrders.map((o) => o.account_id)).size;
+  const confidencePct =
+    event.similarity_score != null ? Math.round(event.similarity_score * 100) : null;
+  const durationMs =
+    nowMs != null
+      ? (resolvedAt ? new Date(resolvedAt).getTime() : nowMs) -
+        new Date(event.detected_at).getTime()
+      : null;
+  const nextAction = steps.find((s) => !s.is_done);
 
   async function toggleStep(step: ChecklistStep) {
     setBusy(`step-${step.step_no}`);
@@ -243,9 +263,11 @@ export default function IncidentDetail({
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 flex flex-col gap-8">
       <div>
-        <Link href="/" className="text-xs text-ink-faint hover:text-ink">
-          ← 대시보드로
-        </Link>
+        {!hideBackLink && (
+          <Link href="/" className="text-xs text-ink-faint hover:text-ink">
+            ← 대시보드로
+          </Link>
+        )}
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <SeverityBadge severity={event.severity} />
           <StatusBadge status={status} />
@@ -272,6 +294,52 @@ export default function IncidentDetail({
           </p>
         )}
       </div>
+
+      <section className="grid sm:grid-cols-3 gap-3">
+        <StatTile
+          label="영향 사용자"
+          value={affectedUsers > 0 ? affectedUsers.toLocaleString("ko-KR") : "-"}
+        />
+        <StatTile
+          label="근본원인 신뢰도"
+          value={confidencePct != null ? `${confidencePct}%` : "-"}
+        />
+        <StatTile label="지속 시간" value={durationMs != null ? formatDuration(durationMs) : "-"} />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">Evidence</h2>
+        <div className="flex flex-wrap gap-1.5">
+          {event.detected_signatures.length > 0 ? (
+            event.detected_signatures.map((sig, i) => (
+              <span
+                key={i}
+                className="rounded-full border border-rule bg-surface-2 px-2.5 py-1 text-xs text-ink-soft"
+              >
+                {sig}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-ink-faint">감지된 시그니처 없음</span>
+          )}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+          Next Best Action
+        </h2>
+        {nextAction ? (
+          <div className="flex items-center gap-2 text-sm border border-rule rounded bg-surface p-3">
+            <SeverityBadge severity={event.severity} />
+            <span className="text-ink">{nextAction.description}</span>
+          </div>
+        ) : (
+          <p className="text-sm text-ink-faint">
+            {steps.length === 0 ? "체크리스트가 없습니다." : "모든 조치가 완료되었습니다."}
+          </p>
+        )}
+      </section>
 
       {sourceLog && (
         <section className="flex flex-col gap-2">
