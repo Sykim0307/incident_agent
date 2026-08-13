@@ -12,22 +12,27 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-bg text-ink">
         <header className="border-b border-rule">
-          <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-            <Link href="/" className="flex items-baseline gap-2">
-              <span className="font-mono text-xs tracking-wide text-accent uppercase">
-                Incident Response
+          <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-6 flex-wrap">
+            <Link href="/" className="flex flex-col gap-0.5">
+              <span className="flex items-baseline gap-2">
+                <span className="font-mono text-xs tracking-wide text-accent uppercase">
+                  Incident Response
+                </span>
+                <span className="font-semibold text-xl">Copilot</span>
               </span>
-              <span className="font-semibold">Copilot</span>
+              <span className="text-xs text-ink-faint">
+                증권 IT 시스템을 위한 24/7 장애 대응 지원 Agent
+              </span>
             </Link>
-            <nav className="flex items-center gap-6 text-sm text-ink-soft">
+            <nav className="flex items-center gap-6 text-[15px] text-ink-soft">
               <Link href="/" className="hover:text-ink transition-colors">
-                관제 대시보드
+                24/7 관제센터
               </Link>
               <Link href="/incidents" className="hover:text-ink transition-colors">
                 장애 목록
               </Link>
               <Link href="/knowledge-base" className="hover:text-ink transition-colors">
-                지식베이스
+                장애 지식베이스
               </Link>
             </nav>
           </div>

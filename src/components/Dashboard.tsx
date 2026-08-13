@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { SeverityBadge, StatusBadge } from "@/components/SeverityBadge";
@@ -12,7 +12,21 @@ import OnCallRoster from "@/components/OnCallRoster";
 import SystemHealthBar from "@/components/SystemHealthBar";
 import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
 import type { AnalyzeResult } from "@/lib/agent/analyze";
+import { INCIDENT_LOGS, NORMAL_LOGS, UNKNOWN_PATTERN_LOGS } from "@/lib/agent/scenarios";
 import type { IncidentEvent, IncidentKB, OnCallContact, SystemLog } from "@/lib/types";
+
+const ANALYSIS_STAGES = [
+  "로그 파싱 및 에러 시그니처 추출 중…",
+  "지식베이스와 TF-IDF 유사도 비교 중…",
+  "심각도 판정 중…",
+  "대응 체크리스트 생성 중…",
+];
+
+const SAMPLE_LOGS = [
+  { label: "정상 로그 예시", value: NORMAL_LOGS[1].raw_log },
+  { label: "장애 로그 예시 (MTS 지연)", value: INCIDENT_LOGS[1].raw_log },
+  { label: "미확인 패턴 예시", value: UNKNOWN_PATTERN_LOGS[0].raw_log },
+];
 
 const LEVEL_STYLE: Record<string, string> = {
   ERROR: "text-sev-critical",
@@ -46,6 +60,7 @@ export default function Dashboard({
   );
   const [testResult, setTestResult] = useState<AnalyzeResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [analyzingStage, setAnalyzingStage] = useState<string | null>(null);
   const [justArrived, setJustArrived] = useState<Set<string>>(new Set());
   const [secondsSinceLastLog, setSecondsSinceLastLog] = useState<number | null>(null);
   const [filters, setFilters] = useState<LogFilterState>(() => {
@@ -159,16 +174,38 @@ export default function Dashboard({
   async function runTest() {
     setTesting(true);
     setTestResult(null);
+    let stageIdx = 0;
+    setAnalyzingStage(ANALYSIS_STAGES[0]);
+    const stageTimer = setInterval(() => {
+      stageIdx = Math.min(stageIdx + 1, ANALYSIS_STAGES.length - 1);
+      setAnalyzingStage(ANALYSIS_STAGES[stageIdx]);
+    }, 450);
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawLog: testLog }),
-      });
-      setTestResult(await res.json());
+      const [result] = await Promise.all([
+        fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawLog: testLog }),
+        }).then((res) => res.json()),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+      setTestResult(result);
     } finally {
+      clearInterval(stageTimer);
+      setAnalyzingStage(null);
       setTesting(false);
     }
+  }
+
+  function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setTestLog(reader.result);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   }
 
   const availableSystems = useMemo(() => {
@@ -232,7 +269,7 @@ export default function Dashboard({
                   autoRunning ? "bg-sev-ok live-dot" : "bg-ink-faint"
                 }`}
               />
-              <h1 className="text-2xl font-semibold">관제 대시보드</h1>
+              <h1 className="text-2xl font-semibold">24/7 장애 관제센터</h1>
             </div>
             <p className="text-sm text-ink-soft mt-1 max-w-xl">
               모의 시스템 로그를 실시간으로 감시하고, 이상 로그가 감지되면 자동으로
@@ -390,26 +427,55 @@ export default function Dashboard({
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          직접 로그 테스트
+          AI 로그 자동 분석 (Agent 동작 확인)
         </h2>
         <p className="text-sm text-ink-soft">
-          아무 로그나 붙여넣고 Agent의 분석 로직(에러 시그니처 추출 + 과거 사례
-          유사도 매칭)을 즉석에서 확인해보세요. 저장되지 않는 읽기 전용 테스트입니다.
+          로그를 붙여넣거나 파일을 업로드하면 Agent가 에러 시그니처 추출 → 과거 장애
+          사례 유사도 비교 → 심각도 판정 → 체크리스트 생성까지 실제 분석 파이프라인을
+          그대로 실행합니다. 샘플 로그로 Agent가 정상 동작하는지 빠르게 확인할 수 있고,
+          저장되지 않는 읽기 전용 테스트입니다.
         </p>
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-ink-faint">샘플 로그:</span>
+          {SAMPLE_LOGS.map((sample) => (
+            <button
+              key={sample.label}
+              onClick={() => setTestLog(sample.value)}
+              className="rounded border border-rule bg-surface px-2.5 py-1 text-ink-soft hover:bg-surface-2"
+            >
+              {sample.label}
+            </button>
+          ))}
+          <label className="ml-auto flex items-center gap-2 text-ink-faint cursor-pointer">
+            로그 파일 업로드
+            <input
+              type="file"
+              accept=".log,.txt"
+              onChange={handleFileUpload}
+              className="text-xs max-w-[10rem]"
+            />
+          </label>
+        </div>
         <textarea
           value={testLog}
           onChange={(e) => setTestLog(e.target.value)}
           rows={4}
           className="w-full rounded border border-rule bg-surface p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <div>
+        <div className="flex items-center gap-3">
           <button
             onClick={runTest}
             disabled={testing}
             className="rounded bg-accent text-white px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {testing ? "분석 중…" : "분석하기"}
+            {testing ? "AI 분석 중…" : "AI 분석 시작"}
           </button>
+          {testing && analyzingStage && (
+            <span className="text-xs text-ink-faint flex items-center gap-2">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent live-dot" />
+              {analyzingStage}
+            </span>
+          )}
         </div>
         {testResult && (
           <div className="border border-rule rounded bg-surface p-4 text-sm flex flex-col gap-2">

@@ -1,5 +1,6 @@
 "use client";
 
+import SeverityLegend from "@/components/SeverityLegend";
 import { computeAllSystemHealth, MONITORED_SYSTEMS, SEVERITY_COLOR_VARS } from "@/lib/systemHealth";
 import type { IncidentEvent } from "@/lib/types";
 
@@ -31,7 +32,7 @@ export default function SystemHealthBar({ events }: { events: IncidentEvent[] })
               title={h.severity ? `${h.system}: ${h.severity} 장애 ${h.openCount}건` : `${h.system}: 정상`}
             >
               <span
-                className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                className="inline-block w-2 h-2 rounded-full flex-shrink-0 live-dot"
                 style={{ backgroundColor: colors?.fg ?? "var(--sev-ok)" }}
               />
               <span className="text-xs font-medium truncate" style={{ color: colors?.fg ?? "var(--ink-soft)" }}>
@@ -44,6 +45,7 @@ export default function SystemHealthBar({ events }: { events: IncidentEvent[] })
           );
         })}
       </div>
+      <SeverityLegend />
     </div>
   );
 }

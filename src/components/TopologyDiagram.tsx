@@ -1,5 +1,6 @@
 "use client";
 
+import SeverityLegend from "@/components/SeverityLegend";
 import { computeSystemHealth, SEVERITY_COLOR_VARS } from "@/lib/systemHealth";
 import type { IncidentEvent } from "@/lib/types";
 
@@ -113,9 +114,10 @@ export default function TopologyDiagram({ events, latestSourceSystem, onSelectSy
         })}
       </div>
       <p className="text-xs text-ink-faint">
-        색이 있는 노드는 해당 시스템에 열려있는 장애가 있음을 의미합니다. 노드를 클릭하면 아래
+        노드 색은 해당 시스템에 열려있는 장애의 위험도를 의미합니다. 노드를 클릭하면 아래
         로그/장애 목록이 해당 시스템으로 필터링됩니다.
       </p>
+      <SeverityLegend />
     </div>
   );
 }
