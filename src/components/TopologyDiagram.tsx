@@ -1,5 +1,6 @@
 "use client";
 
+import { computeSystemHealth, SEVERITY_COLOR_VARS } from "@/lib/systemHealth";
 import type { IncidentEvent } from "@/lib/types";
 
 interface Node {
@@ -33,31 +34,6 @@ const EDGES: [string, string][] = [
   ["계정계 배치", "DB"],
   ["리포트 배치", "DB"],
 ];
-
-const SEVERITY_RANK: Record<string, number> = {
-  CRITICAL: 4,
-  HIGH: 3,
-  MEDIUM: 2,
-  LOW: 1,
-  UNKNOWN: 0,
-};
-
-const SEVERITY_VARS: Record<string, { fg: string; bg: string }> = {
-  CRITICAL: { fg: "var(--sev-critical)", bg: "var(--sev-critical-bg)" },
-  HIGH: { fg: "var(--sev-high)", bg: "var(--sev-high-bg)" },
-  MEDIUM: { fg: "var(--sev-medium)", bg: "var(--sev-medium-bg)" },
-  LOW: { fg: "var(--sev-ok)", bg: "var(--sev-ok-bg)" },
-  UNKNOWN: { fg: "var(--sev-unknown)", bg: "var(--sev-unknown-bg)" },
-};
-
-function nodeHealth(key: string, events: IncidentEvent[]) {
-  const open = events.filter((e) => e.status !== "resolved" && e.source_system === key);
-  if (open.length === 0) return null;
-  const worst = open.reduce((acc, e) =>
-    (SEVERITY_RANK[e.severity] ?? 0) > (SEVERITY_RANK[acc.severity] ?? 0) ? e : acc
-  );
-  return { severity: worst.severity, count: open.length };
-}
 
 interface Props {
   events: IncidentEvent[];
@@ -96,8 +72,9 @@ export default function TopologyDiagram({ events, latestSourceSystem, onSelectSy
         </svg>
 
         {NODES.map((node) => {
-          const health = node.key === "DB" ? null : nodeHealth(node.key, events);
-          const colors = health ? SEVERITY_VARS[health.severity] : null;
+          const health =
+            node.key === "DB" ? null : computeSystemHealth(node.key, events);
+          const colors = health?.severity ? SEVERITY_COLOR_VARS[health.severity] : null;
           const isLive = node.key === latestSourceSystem;
           const clickable = node.key !== "DB" && Boolean(onSelectSystem);
 
@@ -116,15 +93,19 @@ export default function TopologyDiagram({ events, latestSourceSystem, onSelectSy
                 backgroundColor: colors?.bg ?? "var(--surface-2)",
                 color: colors?.fg ?? "var(--ink-soft)",
               }}
-              title={health ? `${node.label}: ${health.severity} 장애 ${health.count}건` : node.label}
+              title={
+                health?.severity
+                  ? `${node.label}: ${health.severity} 장애 ${health.openCount}건`
+                  : node.label
+              }
             >
               {node.label}
-              {health && (
+              {health?.severity && (
                 <span
                   className="ml-1.5 inline-flex items-center justify-center rounded-full text-[9px] w-4 h-4 leading-none"
                   style={{ backgroundColor: colors?.fg, color: colors?.bg }}
                 >
-                  {health.count}
+                  {health.openCount}
                 </span>
               )}
             </button>

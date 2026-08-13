@@ -9,6 +9,7 @@ import LogFilterBar from "@/components/LogFilterBar";
 import TopologyDiagram from "@/components/TopologyDiagram";
 import IncidentTrendSparkline from "@/components/IncidentTrendSparkline";
 import OnCallRoster from "@/components/OnCallRoster";
+import SystemHealthBar from "@/components/SystemHealthBar";
 import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
 import type { AnalyzeResult } from "@/lib/agent/analyze";
 import type { IncidentEvent, IncidentKB, OnCallContact, SystemLog } from "@/lib/types";
@@ -183,6 +184,29 @@ export default function Dashboard({
     [events, filters, kbById]
   );
 
+  const [replayEnabled, setReplayEnabled] = useState(true);
+  const [replayId, setReplayId] = useState<string | null>(null);
+  const filteredLogsRef = useRef(filteredLogs);
+  useEffect(() => {
+    filteredLogsRef.current = filteredLogs;
+  }, [filteredLogs]);
+  const replayCursorRef = useRef(0);
+
+  useEffect(() => {
+    if (!replayEnabled) return;
+    const interval = setInterval(() => {
+      const list = filteredLogsRef.current;
+      if (list.length === 0) return;
+      replayCursorRef.current = (replayCursorRef.current + 1) % list.length;
+      const next = list[replayCursorRef.current];
+      setReplayId(next.id);
+      document
+        .querySelector(`[data-log-id="${next.id}"]`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [replayEnabled]);
+
   function selectSystem(system: string) {
     setFilters((prev) =>
       prev.systems.includes(system)
@@ -200,6 +224,8 @@ export default function Dashboard({
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
+      <SystemHealthBar events={events} />
+
       <section className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -213,7 +239,9 @@ export default function Dashboard({
             </div>
             <p className="text-sm text-ink-soft mt-1 max-w-xl">
               모의 시스템 로그를 실시간으로 감시하고, 이상 로그가 감지되면 자동으로
-              과거 사례를 검색해 대응 체크리스트를 생성합니다.
+              과거 사례를 검색해 대응 체크리스트를 생성합니다. &quot;순환 재생&quot;은
+              이미 쌓인 로그를 계속 다시 비춰 화면이 항상 살아있게 보이도록 하며,
+              새 로그를 만들지 않아 비용이 들지 않습니다.
             </p>
             {secondsSinceLastLog != null && (
               <p className="text-xs text-ink-faint mt-1 tabular-nums">
@@ -238,6 +266,17 @@ export default function Dashboard({
               }`}
             >
               {autoRunning ? "자동 시뮬레이션 중지" : "자동 시뮬레이션 시작 (4초 간격)"}
+            </button>
+            <button
+              onClick={() => setReplayEnabled((v) => !v)}
+              title="이미 저장된 로그를 순서대로 다시 비춰줍니다. 새 데이터 생성이나 추가 비용이 없습니다."
+              className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
+                replayEnabled
+                  ? "border border-accent-soft bg-accent-soft text-accent-ink hover:opacity-90"
+                  : "border border-rule bg-surface hover:bg-surface-2"
+              }`}
+            >
+              {replayEnabled ? "순환 재생 중 (비용 없음)" : "순환 재생 꺼짐"}
             </button>
           </div>
         </div>
@@ -286,8 +325,11 @@ export default function Dashboard({
             {filteredLogs.map((log) => (
               <div
                 key={log.id}
+                data-log-id={log.id}
                 className={`p-3 font-mono text-xs flex gap-3 ${
-                  justArrived.has(log.id) ? "log-row-in" : ""
+                  justArrived.has(log.id) || (replayEnabled && replayId === log.id)
+                    ? "log-row-in"
+                    : ""
                 }`}
               >
                 <span className="text-ink-faint whitespace-nowrap">

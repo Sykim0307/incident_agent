@@ -73,6 +73,10 @@ export default function IncidentDetail({
   const [completeNote, setCompleteNote] = useState("");
   const [completing, setCompleting] = useState(false);
 
+  const [report, setReport] = useState(event.draft_report);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [reportCopied, setReportCopied] = useState(false);
+
   const allStepsDone = steps.length > 0 && steps.every((s) => s.is_done);
   const isResolved = status === "resolved";
 
@@ -210,6 +214,29 @@ export default function IncidentDetail({
       setCompleteConfirming(false);
     } finally {
       setCompleting(false);
+    }
+  }
+
+  async function runGenerateReport() {
+    setReportGenerating(true);
+    setReportCopied(false);
+    try {
+      const res = await fetch(`/api/incidents/${event.id}/report`, { method: "POST" });
+      const data = await res.json();
+      setReport(data.report ?? null);
+    } finally {
+      setReportGenerating(false);
+    }
+  }
+
+  async function copyReport() {
+    if (!report) return;
+    try {
+      await navigator.clipboard.writeText(report);
+      setReportCopied(true);
+      setTimeout(() => setReportCopied(false), 1500);
+    } catch {
+      // clipboard API unavailable — ignore, report text is still visible to select/copy manually
     }
   }
 
@@ -480,6 +507,40 @@ export default function IncidentDetail({
           )}
         </section>
       )}
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            장애조치 보고서
+          </h2>
+          <div className="flex gap-2">
+            {report && (
+              <button
+                onClick={copyReport}
+                className="rounded border border-rule bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-2"
+              >
+                {reportCopied ? "복사됨" : "복사"}
+              </button>
+            )}
+            <button
+              onClick={runGenerateReport}
+              disabled={reportGenerating}
+              className="rounded bg-accent text-white px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {reportGenerating ? "생성 중…" : report ? "보고서 새로고침" : "보고서 생성"}
+            </button>
+          </div>
+        </div>
+        {report ? (
+          <pre className="border border-rule rounded bg-surface p-4 font-mono text-xs whitespace-pre-wrap overflow-x-auto">
+            {report}
+          </pre>
+        ) : (
+          <p className="text-sm text-ink-faint">
+            현재까지의 감지·조치·검증·복구·알림 내역을 바탕으로 보고서를 생성할 수 있습니다.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

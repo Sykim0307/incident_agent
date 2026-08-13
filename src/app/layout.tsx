@@ -23,6 +23,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-ink transition-colors">
                 관제 대시보드
               </Link>
+              <Link href="/incidents" className="hover:text-ink transition-colors">
+                장애 목록
+              </Link>
               <Link href="/knowledge-base" className="hover:text-ink transition-colors">
                 지식베이스
               </Link>

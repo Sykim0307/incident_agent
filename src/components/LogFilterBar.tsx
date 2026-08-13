@@ -1,6 +1,12 @@
 "use client";
 
-import { DEFAULT_FILTERS, hasActiveFilters, type LogFilterState } from "@/lib/filters";
+import {
+  DATE_RANGE_PRESETS,
+  DEFAULT_FILTERS,
+  hasActiveFilters,
+  toLocalDateTimeInput,
+  type LogFilterState,
+} from "@/lib/filters";
 import type { LogLevel, Severity } from "@/lib/types";
 
 const LEVELS: LogLevel[] = ["INFO", "WARN", "ERROR"];
@@ -30,6 +36,12 @@ export default function LogFilterBar({
   }
 
   const active = hasActiveFilters(filters);
+
+  function applyPreset(days: number) {
+    const to = new Date();
+    const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+    onChange({ ...filters, dateFrom: toLocalDateTimeInput(from), dateTo: toLocalDateTimeInput(to) });
+  }
 
   return (
     <div className="border border-rule rounded bg-surface p-4 flex flex-col gap-3">
@@ -95,6 +107,19 @@ export default function LogFilterBar({
             ))}
           </FilterGroup>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <span className="text-ink-faint">기간</span>
+        {DATE_RANGE_PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            onClick={() => applyPreset(preset.days)}
+            className="rounded border border-rule bg-bg px-2 py-1 text-ink-soft hover:bg-surface-2"
+          >
+            {preset.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs">

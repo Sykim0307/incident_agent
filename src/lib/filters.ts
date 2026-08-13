@@ -29,6 +29,25 @@ export function hasActiveFilters(f: LogFilterState): boolean {
   );
 }
 
+export function toLocalDateTimeInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+export interface DateRangePreset {
+  label: string;
+  days: number;
+}
+
+export const DATE_RANGE_PRESETS: DateRangePreset[] = [
+  { label: "최근 1일", days: 1 },
+  { label: "최근 1주일", days: 7 },
+  { label: "최근 1개월", days: 30 },
+  { label: "최근 1년", days: 365 },
+];
+
 function inDateRange(iso: string, from: string, to: string): boolean {
   const t = new Date(iso).getTime();
   if (from && t < new Date(from).getTime()) return false;

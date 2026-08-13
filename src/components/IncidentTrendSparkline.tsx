@@ -71,9 +71,6 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
     0
   );
 
-  const barWidth = 100 / buckets.length;
-  const gap = barWidth * 0.18;
-
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
@@ -83,42 +80,38 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
         <span className="text-xs text-ink-faint tabular-nums">총 {total}건</span>
       </div>
       <div className="border border-rule rounded bg-surface p-3">
-        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-20 block">
+        <div className="flex items-end gap-[3px]" style={{ height: 64 }}>
           {buckets.map((b, i) => {
-            const heightPct = (b.count / maxCount) * 32;
-            const x = i * barWidth + gap / 2;
-            const w = barWidth - gap;
-            const y = 36 - heightPct;
+            const heightPct = b.count === 0 ? 3 : Math.max(6, (b.count / maxCount) * 100);
             const color = b.worstSeverity ? SEVERITY_COLOR[b.worstSeverity] : "var(--surface-2)";
             return (
-              <rect
+              <div
                 key={i}
-                x={x}
-                y={b.count === 0 ? 35 : y}
-                width={w}
-                height={b.count === 0 ? 1 : heightPct}
-                rx={0.6}
-                fill={color}
-              >
-                <title>{`${b.hourStart.getHours()}시 · ${b.count}건${
+                className="flex-1 flex flex-col items-center justify-end h-full"
+                title={`${b.hourStart.getHours()}시 · ${b.count}건${
                   b.worstSeverity ? ` · 최고 ${b.worstSeverity}` : ""
-                }`}</title>
-              </rect>
+                }`}
+              >
+                {i === maxIdx && b.count > 0 && (
+                  <span className="text-[9px] text-ink-faint leading-none mb-0.5 tabular-nums">
+                    {b.count}
+                  </span>
+                )}
+                <div
+                  className="w-full rounded-t-sm"
+                  style={{ height: `${heightPct}%`, backgroundColor: color }}
+                />
+              </div>
             );
           })}
-          {buckets[maxIdx].count > 0 && (
-            <text
-              x={maxIdx * barWidth + barWidth / 2}
-              y={36 - (buckets[maxIdx].count / maxCount) * 32 - 2}
-              fontSize={3.2}
-              textAnchor="middle"
-              fill="var(--ink-faint)"
-            >
-              {buckets[maxIdx].count}
-            </text>
-          )}
-          <line x1={0} y1={36} x2={100} y2={36} stroke="var(--rule)" strokeWidth={0.3} />
-        </svg>
+        </div>
+        <div className="flex gap-[3px] mt-1">
+          {buckets.map((b, i) => (
+            <div key={i} className="flex-1 text-center text-[9px] text-ink-faint tabular-nums">
+              {i % 4 === 0 ? `${b.hourStart.getHours()}시` : ""}
+            </div>
+          ))}
+        </div>
       </div>
       <div className="flex items-center gap-3 flex-wrap text-[10px] text-ink-faint">
         {LEGEND.map((l) => (
