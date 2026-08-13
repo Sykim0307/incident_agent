@@ -200,9 +200,6 @@ export default function Dashboard({
       replayCursorRef.current = (replayCursorRef.current + 1) % list.length;
       const next = list[replayCursorRef.current];
       setReplayId(next.id);
-      document
-        .querySelector(`[data-log-id="${next.id}"]`)
-        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }, 2500);
     return () => clearInterval(interval);
   }, [replayEnabled]);
@@ -325,7 +322,6 @@ export default function Dashboard({
             {filteredLogs.map((log) => (
               <div
                 key={log.id}
-                data-log-id={log.id}
                 className={`p-3 font-mono text-xs flex gap-3 ${
                   justArrived.has(log.id) || (replayEnabled && replayId === log.id)
                     ? "log-row-in"
