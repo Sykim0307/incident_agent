@@ -74,15 +74,21 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          지난 24시간 장애 발생 추이
-        </h2>
+        <div>
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            지난 24시간 장애 발생 추이
+          </h2>
+          <p className="text-xs text-ink-faint mt-0.5">
+            시간대별 장애 발생 빈도와 심각도 변화를 보여줍니다.
+          </p>
+        </div>
         <span className="text-xs text-ink-faint tabular-nums">총 {total}건</span>
       </div>
       <div className="border border-rule rounded bg-surface p-3">
         <div className="flex items-end gap-[3px]" style={{ height: 64 }}>
           {buckets.map((b, i) => {
-            const heightPct = b.count === 0 ? 3 : Math.max(6, (b.count / maxCount) * 100);
+            const heightPct =
+              b.count === 0 ? 3 : Math.max(8, Math.sqrt(b.count / maxCount) * 100);
             const color = b.worstSeverity ? SEVERITY_COLOR[b.worstSeverity] : "var(--surface-2)";
             return (
               <div
@@ -98,7 +104,7 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
                   </span>
                 )}
                 <div
-                  className="w-full rounded-t-sm"
+                  className="w-full rounded-t-sm transition-all duration-700 ease-out"
                   style={{ height: `${heightPct}%`, backgroundColor: color }}
                 />
               </div>

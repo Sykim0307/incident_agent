@@ -46,9 +46,14 @@ export default function LogFilterBar({
   return (
     <div className="border border-rule rounded bg-surface p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          검색 · 필터
-        </h2>
+        <div>
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            검색 · 필터
+          </h2>
+          <p className="text-xs text-ink-faint mt-0.5">
+            아래 로그·장애 목록을 키워드/레벨/위험도/시스템/기간으로 좁혀봅니다.
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-ink-faint tabular-nums">
             로그 {shownLogs}/{totalLogs}건 · 장애 {shownEvents}/{totalEvents}건 표시

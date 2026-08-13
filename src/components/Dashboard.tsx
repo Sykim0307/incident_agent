@@ -325,14 +325,6 @@ export default function Dashboard({
         <OnCallRoster contacts={onCallContacts} />
       </section>
 
-      <TopologyDiagram
-        events={events}
-        latestSourceSystem={logs[0]?.source_system ?? null}
-        onSelectSystem={selectSystem}
-      />
-
-      <IncidentTrendSparkline events={events} />
-
       <LogFilterBar
         filters={filters}
         onChange={setFilters}
@@ -345,9 +337,14 @@ export default function Dashboard({
 
       <section className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
         <div className="flex flex-col gap-3">
-          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-            실시간 로그 스트림
-          </h2>
+          <div>
+            <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+              실시간 로그 스트림
+            </h2>
+            <p className="text-xs text-ink-faint mt-0.5">
+              모든 시스템에서 발생하는 로그를 실시간으로 보여줍니다.
+            </p>
+          </div>
           <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
             {filteredLogs.length === 0 && (
               <p className="p-4 text-sm text-ink-faint">
@@ -379,9 +376,15 @@ export default function Dashboard({
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-            감지된 장애
-          </h2>
+          <div>
+            <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+              감지된 장애
+            </h2>
+            <p className="text-xs text-ink-faint mt-0.5">
+              에러 로그에서 Agent가 자동으로 감지한 장애입니다. 클릭하면 대응 화면으로
+              이동합니다.
+            </p>
+          </div>
           <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
             {filteredEvents.length === 0 && (
               <p className="p-4 text-sm text-ink-faint">
@@ -423,6 +426,15 @@ export default function Dashboard({
             })}
           </div>
         </div>
+      </section>
+
+      <section className="grid lg:grid-cols-2 gap-8">
+        <TopologyDiagram
+          events={events}
+          latestSourceSystem={logs[0]?.source_system ?? null}
+          onSelectSystem={selectSystem}
+        />
+        <IncidentTrendSparkline events={events} />
       </section>
 
       <section className="flex flex-col gap-3">

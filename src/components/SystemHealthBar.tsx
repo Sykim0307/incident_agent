@@ -10,11 +10,19 @@ export default function SystemHealthBar({ events }: { events: IncidentEvent[] })
 
   return (
     <div className="border border-rule rounded bg-surface p-3 flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-          증권 IT 시스템 헬스체크
-        </h2>
-        <span className={`text-xs ${degradedCount > 0 ? "text-sev-critical" : "text-sev-ok"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+            증권 IT 시스템 헬스체크
+          </h2>
+          <p className="text-xs text-ink-faint mt-0.5">
+            시스템별 실시간 상태를 한눈에 확인합니다. 점이 계속 깜빡이는 것은 정상적으로
+            점검이 진행 중이라는 뜻입니다.
+          </p>
+        </div>
+        <span
+          className={`text-xs whitespace-nowrap ${degradedCount > 0 ? "text-sev-critical" : "text-sev-ok"}`}
+        >
           {degradedCount > 0 ? `${degradedCount}개 시스템 이상` : "전체 시스템 정상"}
         </span>
       </div>
