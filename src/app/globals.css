@@ -85,3 +85,50 @@ body {
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
+
+/* ---- live/pulse animations (관제 대시보드가 "살아있게" 보이도록) ---- */
+
+@keyframes log-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    background-color: var(--accent-soft);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
+}
+
+.log-row-in {
+  animation: log-row-in 900ms ease-out;
+}
+
+@keyframes node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 6px currentColor;
+  }
+}
+
+.node-pulse {
+  animation: node-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.live-dot {
+  animation: live-dot 1.4s ease-in-out infinite;
+}

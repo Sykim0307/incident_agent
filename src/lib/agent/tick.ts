@@ -3,6 +3,7 @@ import { extractErrorSignatures } from "@/lib/agent/signatures";
 import { searchSimilarIncidents, MATCH_THRESHOLD } from "@/lib/agent/similarity";
 import { pickRandomLog } from "@/lib/agent/scenarios";
 import { refineIncidentNarrative } from "@/lib/claude";
+import { notifyOnCall } from "@/lib/agent/notify";
 import type { IncidentKB, MtsOrder } from "@/lib/types";
 
 const ESCALATION_CHECKLIST = [
@@ -65,6 +66,7 @@ export async function runMonitoringTick(supabase: SupabaseClient): Promise<TickR
     .from("incident_events")
     .insert({
       source_log_id: insertedLog.id,
+      source_system: template.source_system,
       detected_signatures: signatures,
       matched_incident_id: isMatch ? best.incident.id : null,
       similarity_score: best ? best.score : 0,
@@ -90,6 +92,13 @@ export async function runMonitoringTick(supabase: SupabaseClient): Promise<TickR
   if (isMatch && template.impact === "mts_orders_fail") {
     await simulateMtsImpact(supabase, incidentEvent.id);
   }
+
+  await notifyOnCall(supabase, {
+    incidentEventId: incidentEvent.id,
+    sourceSystem: template.source_system,
+    severity,
+    summary: isMatch ? best.incident.title : "지식베이스에 없는 신규 장애 패턴",
+  });
 
   const narrative = await refineIncidentNarrative({
     detectedSignatures: signatures,

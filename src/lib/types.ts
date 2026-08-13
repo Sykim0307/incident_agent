@@ -44,6 +44,7 @@ export interface IncidentEvent {
   id: string;
   detected_at: string;
   source_log_id: string | null;
+  source_system: string | null;
   detected_signatures: string[];
   matched_incident_id: string | null;
   similarity_score: number | null;
@@ -52,6 +53,9 @@ export interface IncidentEvent {
   checklist: string[];
   draft_report: string | null;
   llm_summary: string | null;
+  resolved_at: string | null;
+  resolution_method: "recovery" | "manual" | null;
+  resolution_note: string | null;
 }
 
 export interface IncidentEventWithRelations extends IncidentEvent {
@@ -88,4 +92,34 @@ export interface MtsOrder {
   price: number;
   status: "pending" | "filled" | "failed" | "cancelled";
   created_at: string;
+}
+
+export interface LedgerAccount {
+  id: string;
+  account_no: string;
+  customer_name: string;
+  balance: number;
+  updated_at: string;
+}
+
+export interface OnCallContact {
+  id: string;
+  name: string;
+  role: string;
+  channel: "sms" | "email";
+  contact_address: string;
+  system_scope: string[];
+  active: boolean;
+}
+
+export interface NotificationRecord {
+  id: string;
+  incident_event_id: string;
+  contact_id: string | null;
+  channel: "sms" | "email";
+  recipient: string;
+  message: string;
+  status: "sent" | "failed";
+  sent_at: string;
+  simulated: boolean;
 }

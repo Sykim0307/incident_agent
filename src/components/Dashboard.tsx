@@ -4,8 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { SeverityBadge, StatusBadge } from "@/components/SeverityBadge";
+import { StatTile } from "@/components/StatTile";
+import LogFilterBar from "@/components/LogFilterBar";
+import TopologyDiagram from "@/components/TopologyDiagram";
+import IncidentTrendSparkline from "@/components/IncidentTrendSparkline";
+import OnCallRoster from "@/components/OnCallRoster";
+import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
 import type { AnalyzeResult } from "@/lib/agent/analyze";
-import type { IncidentEvent, IncidentKB, SystemLog } from "@/lib/types";
+import type { IncidentEvent, IncidentKB, OnCallContact, SystemLog } from "@/lib/types";
 
 const LEVEL_STYLE: Record<string, string> = {
   ERROR: "text-sev-critical",
@@ -13,16 +19,22 @@ const LEVEL_STYLE: Record<string, string> = {
   INFO: "text-ink-faint",
 };
 
+const LOG_CAP = 500;
+const EVENT_CAP = 300;
+const FILTER_STORAGE_KEY = "incident-agent:log-filters";
+
 interface DashboardProps {
   initialLogs: SystemLog[];
   initialEvents: IncidentEvent[];
   knowledgeBase: IncidentKB[];
+  onCallContacts: OnCallContact[];
 }
 
 export default function Dashboard({
   initialLogs,
   initialEvents,
   knowledgeBase,
+  onCallContacts,
 }: DashboardProps) {
   const [logs, setLogs] = useState<SystemLog[]>(initialLogs);
   const [events, setEvents] = useState<IncidentEvent[]>(initialEvents);
@@ -33,6 +45,25 @@ export default function Dashboard({
   );
   const [testResult, setTestResult] = useState<AnalyzeResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [justArrived, setJustArrived] = useState<Set<string>>(new Set());
+  const [secondsSinceLastLog, setSecondsSinceLastLog] = useState<number | null>(null);
+  const [filters, setFilters] = useState<LogFilterState>(() => {
+    if (typeof window === "undefined") return DEFAULT_FILTERS;
+    try {
+      const stored = sessionStorage.getItem(FILTER_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : DEFAULT_FILTERS;
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+      // ignore storage errors (e.g. private mode quota)
+    }
+  }, [filters]);
 
   const kbById = useMemo(() => {
     const map = new Map<string, IncidentKB>();
@@ -42,6 +73,10 @@ export default function Dashboard({
 
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logsRef = useRef(logs);
+  useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
 
   useEffect(() => {
     const channel = supabase
@@ -50,14 +85,23 @@ export default function Dashboard({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "system_logs" },
         (payload) => {
-          setLogs((prev) => [payload.new as SystemLog, ...prev].slice(0, 40));
+          const row = payload.new as SystemLog;
+          setLogs((prev) => [row, ...prev].slice(0, LOG_CAP));
+          setJustArrived((prev) => new Set(prev).add(row.id));
+          setTimeout(() => {
+            setJustArrived((prev) => {
+              const next = new Set(prev);
+              next.delete(row.id);
+              return next;
+            });
+          }, 1200);
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "incident_events" },
         (payload) => {
-          setEvents((prev) => [payload.new as IncidentEvent, ...prev]);
+          setEvents((prev) => [payload.new as IncidentEvent, ...prev].slice(0, EVENT_CAP));
         }
       )
       .on(
@@ -90,6 +134,18 @@ export default function Dashboard({
     };
   }, [autoRunning]);
 
+  useEffect(() => {
+    const clock = setInterval(() => {
+      const latest = logsRef.current[0];
+      setSecondsSinceLastLog(
+        latest
+          ? Math.max(0, Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 1000))
+          : null
+      );
+    }, 1000);
+    return () => clearInterval(clock);
+  }, []);
+
   async function runOneTick() {
     setTicking(true);
     try {
@@ -114,6 +170,27 @@ export default function Dashboard({
     }
   }
 
+  const availableSystems = useMemo(() => {
+    const systems = new Set<string>();
+    for (const log of logs) systems.add(log.source_system);
+    for (const event of events) if (event.source_system) systems.add(event.source_system);
+    return [...systems].sort();
+  }, [logs, events]);
+
+  const filteredLogs = useMemo(() => filterLogs(logs, filters), [logs, filters]);
+  const filteredEvents = useMemo(
+    () => filterEvents(events, filters, kbById),
+    [events, filters, kbById]
+  );
+
+  function selectSystem(system: string) {
+    setFilters((prev) =>
+      prev.systems.includes(system)
+        ? { ...prev, systems: prev.systems.filter((s) => s !== system) }
+        : { ...prev, systems: [...prev.systems, system] }
+    );
+  }
+
   const openEvents = events.filter((e) => e.status !== "resolved");
   const counts = {
     CRITICAL: openEvents.filter((e) => e.severity === "CRITICAL").length,
@@ -126,11 +203,23 @@ export default function Dashboard({
       <section className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-semibold">관제 대시보드</h1>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${
+                  autoRunning ? "bg-sev-ok live-dot" : "bg-ink-faint"
+                }`}
+              />
+              <h1 className="text-2xl font-semibold">관제 대시보드</h1>
+            </div>
             <p className="text-sm text-ink-soft mt-1 max-w-xl">
               모의 시스템 로그를 실시간으로 감시하고, 이상 로그가 감지되면 자동으로
               과거 사례를 검색해 대응 체크리스트를 생성합니다.
             </p>
+            {secondsSinceLastLog != null && (
+              <p className="text-xs text-ink-faint mt-1 tabular-nums">
+                마지막 로그: {secondsSinceLastLog}초 전
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -154,12 +243,32 @@ export default function Dashboard({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SummaryCard label="최근 로그" value={counts.total} />
-          <SummaryCard label="열려있는 장애" value={openEvents.length} />
-          <SummaryCard label="CRITICAL" value={counts.CRITICAL} tone="critical" />
-          <SummaryCard label="HIGH" value={counts.HIGH} tone="high" />
+          <StatTile label="최근 로그" value={counts.total} />
+          <StatTile label="열려있는 장애" value={openEvents.length} />
+          <StatTile label="CRITICAL" value={counts.CRITICAL} tone="critical" />
+          <StatTile label="HIGH" value={counts.HIGH} tone="high" />
         </div>
+
+        <OnCallRoster contacts={onCallContacts} />
       </section>
+
+      <TopologyDiagram
+        events={events}
+        latestSourceSystem={logs[0]?.source_system ?? null}
+        onSelectSystem={selectSystem}
+      />
+
+      <IncidentTrendSparkline events={events} />
+
+      <LogFilterBar
+        filters={filters}
+        onChange={setFilters}
+        availableSystems={availableSystems}
+        totalLogs={logs.length}
+        shownLogs={filteredLogs.length}
+        totalEvents={events.length}
+        shownEvents={filteredEvents.length}
+      />
 
       <section className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
         <div className="flex flex-col gap-3">
@@ -167,13 +276,20 @@ export default function Dashboard({
             실시간 로그 스트림
           </h2>
           <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
-            {logs.length === 0 && (
+            {filteredLogs.length === 0 && (
               <p className="p-4 text-sm text-ink-faint">
-                아직 로그가 없습니다. &quot;지금 로그 1건 생성&quot;을 눌러보세요.
+                {logs.length === 0
+                  ? '아직 로그가 없습니다. "지금 로그 1건 생성"을 눌러보세요.'
+                  : "필터 조건에 맞는 로그가 없습니다."}
               </p>
             )}
-            {logs.map((log) => (
-              <div key={log.id} className="p-3 font-mono text-xs flex gap-3">
+            {filteredLogs.map((log) => (
+              <div
+                key={log.id}
+                className={`p-3 font-mono text-xs flex gap-3 ${
+                  justArrived.has(log.id) ? "log-row-in" : ""
+                }`}
+              >
                 <span className="text-ink-faint whitespace-nowrap">
                   {new Date(log.created_at).toLocaleTimeString("ko-KR")}
                 </span>
@@ -192,12 +308,14 @@ export default function Dashboard({
             감지된 장애
           </h2>
           <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[520px] overflow-y-auto">
-            {events.length === 0 && (
+            {filteredEvents.length === 0 && (
               <p className="p-4 text-sm text-ink-faint">
-                아직 감지된 장애가 없습니다.
+                {events.length === 0
+                  ? "아직 감지된 장애가 없습니다."
+                  : "필터 조건에 맞는 장애가 없습니다."}
               </p>
             )}
-            {events.map((event) => {
+            {filteredEvents.map((event) => {
               const kb = event.matched_incident_id
                 ? kbById.get(event.matched_incident_id)
                 : null;
@@ -210,6 +328,9 @@ export default function Dashboard({
                   <div className="flex items-center gap-2 flex-wrap">
                     <SeverityBadge severity={event.severity} />
                     <StatusBadge status={event.status} />
+                    {event.source_system && (
+                      <span className="text-xs text-ink-faint">{event.source_system}</span>
+                    )}
                     <span className="text-xs text-ink-faint ml-auto">
                       {new Date(event.detected_at).toLocaleTimeString("ko-KR")}
                     </span>
@@ -278,29 +399,6 @@ export default function Dashboard({
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "critical" | "high";
-}) {
-  const toneClass =
-    tone === "critical"
-      ? "text-sev-critical"
-      : tone === "high"
-        ? "text-sev-high"
-        : "text-ink";
-  return (
-    <div className="border border-rule rounded bg-surface px-4 py-3">
-      <p className="text-xs text-ink-faint">{label}</p>
-      <p className={`text-2xl font-semibold mt-1 tabular-nums ${toneClass}`}>{value}</p>
     </div>
   );
 }

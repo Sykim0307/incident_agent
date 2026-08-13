@@ -37,6 +37,15 @@ export async function runRecovery(
       .select()
       .single();
 
+    await supabase
+      .from("incident_events")
+      .update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        resolution_method: "recovery",
+      })
+      .eq("id", incidentEventId);
+
     return {
       result: "success",
       detail: action?.detail ?? "복구할 대상이 없습니다.",
@@ -86,7 +95,11 @@ export async function runRecovery(
   if (result === "success") {
     await supabase
       .from("incident_events")
-      .update({ status: "resolved" })
+      .update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        resolution_method: "recovery",
+      })
       .eq("id", incidentEventId);
   }
 
