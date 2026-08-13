@@ -85,21 +85,38 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
         <span className="text-xs text-ink-faint tabular-nums">총 {total}건</span>
       </div>
       <div className="border border-rule rounded bg-surface p-3">
-        <div className="flex items-end gap-[3px]" style={{ height: 64 }}>
+        <div className="flex items-end gap-[3px] border-b border-rule pb-0.5" style={{ height: 64 }}>
           {buckets.map((b, i) => {
-            const heightPct =
-              b.count === 0 ? 3 : Math.max(8, Math.sqrt(b.count / maxCount) * 100);
+            const heightPct = Math.max(8, Math.sqrt(b.count / maxCount) * 100);
             const color = b.worstSeverity ? SEVERITY_COLOR[b.worstSeverity] : "var(--surface-2)";
+            const title = `${b.hourStart.getHours()}시 · ${b.count}건${
+              b.worstSeverity ? ` · 최고 ${b.worstSeverity}` : ""
+            }`;
+
+            if (b.count === 0) {
+              return (
+                <div key={i} className="flex-1 h-full flex items-end" title={title}>
+                  <div className="w-full h-[2px]" style={{ backgroundColor: "var(--rule)" }} />
+                </div>
+              );
+            }
+
             return (
               <div
                 key={i}
-                className="flex-1 flex flex-col items-center justify-end h-full"
-                title={`${b.hourStart.getHours()}시 · ${b.count}건${
-                  b.worstSeverity ? ` · 최고 ${b.worstSeverity}` : ""
-                }`}
+                className="flex-1 flex flex-col items-center justify-end h-full gap-1"
+                title={title}
               >
-                {i === maxIdx && b.count > 0 && (
-                  <span className="text-[9px] text-ink-faint leading-none mb-0.5 tabular-nums">
+                {b.worstSeverity === "CRITICAL" && (
+                  <span
+                    className="rounded px-1 text-[9px] font-semibold leading-tight text-white whitespace-nowrap"
+                    style={{ backgroundColor: color }}
+                  >
+                    CRIT
+                  </span>
+                )}
+                {i === maxIdx && (
+                  <span className="text-[9px] text-ink-faint leading-none tabular-nums">
                     {b.count}
                   </span>
                 )}
@@ -111,10 +128,10 @@ export default function IncidentTrendSparkline({ events }: { events: IncidentEve
             );
           })}
         </div>
-        <div className="flex gap-[3px] mt-1">
+        <div className="flex gap-[3px] mt-1.5">
           {buckets.map((b, i) => (
             <div key={i} className="flex-1 text-center text-[9px] text-ink-faint tabular-nums">
-              {i % 4 === 0 ? `${b.hourStart.getHours()}시` : ""}
+              {b.count > 0 ? `${b.hourStart.getHours()}시·${b.count}` : i % 4 === 0 ? `${b.hourStart.getHours()}` : ""}
             </div>
           ))}
         </div>

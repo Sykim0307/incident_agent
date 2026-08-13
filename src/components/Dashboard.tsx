@@ -11,10 +11,9 @@ import OnCallRoster from "@/components/OnCallRoster";
 import SystemHealthBar from "@/components/SystemHealthBar";
 import LiveLogTicker from "@/components/LiveLogTicker";
 import ResourceMonitor from "@/components/ResourceMonitor";
-import IncidentSidebar from "@/components/IncidentSidebar";
+import IncidentSidebar, { sortEvents, type IncidentSortMode } from "@/components/IncidentSidebar";
 import IncidentDetailPanel from "@/components/IncidentDetailPanel";
 import { DEFAULT_FILTERS, filterEvents, filterLogs, type LogFilterState } from "@/lib/filters";
-import { groupIncidents, sortGroups, type IncidentSortMode } from "@/lib/incidentGroups";
 import type { AnalyzeResult } from "@/lib/agent/analyze";
 import { INCIDENT_LOGS, NORMAL_LOGS, UNKNOWN_PATTERN_LOGS } from "@/lib/agent/scenarios";
 import type { IncidentEvent, IncidentKB, OnCallContact, SystemLog } from "@/lib/types";
@@ -31,12 +30,6 @@ const SAMPLE_LOGS = [
   { label: "장애 로그 예시 (MTS 지연)", value: INCIDENT_LOGS[1].raw_log },
   { label: "미확인 패턴 예시", value: UNKNOWN_PATTERN_LOGS[0].raw_log },
 ];
-
-const LEVEL_STYLE: Record<string, string> = {
-  ERROR: "text-sev-critical",
-  WARN: "text-sev-high",
-  INFO: "text-ink-faint",
-};
 
 const LOG_CAP = 500;
 const EVENT_CAP = 300;
@@ -292,20 +285,18 @@ export default function Dashboard({
 
   const [sortMode, setSortMode] = useState<IncidentSortMode>("severity");
   const [sidebarKeyword, setSidebarKeyword] = useState("");
-  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [selectedEventIdRaw, setSelectedEventIdRaw] = useState<string | null>(null);
 
-  const groups = useMemo(
-    () => sortGroups(groupIncidents(filteredEvents, kbById), sortMode),
-    [filteredEvents, kbById, sortMode]
+  const sortedEvents = useMemo(
+    () => sortEvents(filteredEvents, sortMode),
+    [filteredEvents, sortMode]
   );
   // Derived (not stored) so a stale selection from a resolved/filtered-out
-  // group falls back to the top of the list without needing an effect.
-  const effectiveSelectedKey =
-    selectedGroupKey && groups.some((g) => g.key === selectedGroupKey)
-      ? selectedGroupKey
-      : groups[0]?.key ?? null;
-  const selectedGroup = groups.find((g) => g.key === effectiveSelectedKey) ?? null;
-  const selectedEventId = selectedGroup?.representative.id ?? null;
+  // incident falls back to the top of the list without needing an effect.
+  const selectedEventId =
+    selectedEventIdRaw && sortedEvents.some((e) => e.id === selectedEventIdRaw)
+      ? selectedEventIdRaw
+      : sortedEvents[0]?.id ?? null;
 
   const openEvents = events.filter((e) => e.status !== "resolved");
   const counts = {
@@ -319,7 +310,10 @@ export default function Dashboard({
       <section className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-accent">
+              Monitoring Dashboard
+            </span>
+            <div className="flex items-center gap-2 mt-0.5">
               <span
                 className={`inline-block w-2 h-2 rounded-full ${
                   autoRunning ? "bg-sev-ok live-dot" : "bg-ink-faint"
@@ -397,18 +391,23 @@ export default function Dashboard({
         <OnCallRoster contacts={onCallContacts} />
       </section>
 
+      <hr className="border-rule" />
+
       <LiveLogTicker logs={logs} replayId={replayEnabled ? replayId : null} />
 
       <SystemHealthBar events={events} />
 
       <ResourceMonitor />
 
+      <hr className="border-rule" />
+
       <section className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* nowMs starts null and fills in ~1s after mount (see effect above); IncidentSidebar/IncidentGroupCard render immediately and only the relative-time text waits on it. */}
+        {/* nowMs starts null and fills in ~1s after mount (see effect above); IncidentSidebar renders immediately and only the relative-time text waits on it. */}
         <IncidentSidebar
-          groups={groups}
-          selectedKey={effectiveSelectedKey}
-          onSelect={(g) => setSelectedGroupKey(g.key)}
+          events={sortedEvents}
+          kbById={kbById}
+          selectedId={selectedEventId}
+          onSelect={(e) => setSelectedEventIdRaw(e.id)}
           nowMs={nowMs}
           sortMode={sortMode}
           onSortModeChange={setSortMode}
@@ -436,17 +435,23 @@ export default function Dashboard({
           />
 
           <div className="flex flex-col gap-3">
-            <div>
-              <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-                실시간 로그 스트림
-              </h2>
-              <p className="text-xs text-ink-faint mt-0.5">
-                모든 시스템에서 발생하는 로그를 실시간으로 보여줍니다.
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-accent live-dot" />
+              <div>
+                <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+                  실시간 로그 스트림
+                </h2>
+                <p className="text-xs text-ink-faint mt-0.5">
+                  모든 시스템에서 발생하는 로그를 실시간으로 보여줍니다.
+                </p>
+              </div>
             </div>
-            <div className="border border-rule rounded bg-surface divide-y divide-rule max-h-[420px] overflow-y-auto">
+            <div
+              className="rounded divide-y max-h-[420px] overflow-y-auto font-mono text-xs"
+              style={{ background: "#0b0d10", color: "#c9cdd3", borderColor: "#22262c" }}
+            >
               {filteredLogs.length === 0 && (
-                <p className="p-4 text-sm text-ink-faint">
+                <p className="p-4" style={{ color: "#71767e" }}>
                   {logs.length === 0
                     ? '아직 로그가 없습니다. "지금 로그 1건 생성"을 눌러보세요.'
                     : "필터 조건에 맞는 로그가 없습니다."}
@@ -455,24 +460,42 @@ export default function Dashboard({
               {filteredLogs.map((log) => (
                 <div
                   key={log.id}
-                  className={`p-3 font-mono text-xs flex gap-3 ${
+                  className={`p-3 flex gap-3 border-b ${
                     justArrived.has(log.id) || (replayEnabled && replayId === log.id)
                       ? "log-row-in"
                       : ""
                   }`}
+                  style={{
+                    borderColor: "#1c1f24",
+                    background: log.level === "ERROR" ? "rgba(227, 106, 95, 0.14)" : "transparent",
+                  }}
                 >
-                  <span className="text-ink-faint whitespace-nowrap">
+                  <span style={{ color: "#71767e" }} className="whitespace-nowrap">
                     {new Date(log.created_at).toLocaleTimeString("ko-KR")}
                   </span>
-                  <span className={`whitespace-nowrap ${LEVEL_STYLE[log.level]}`}>
+                  <span
+                    className="whitespace-nowrap font-semibold"
+                    style={{
+                      color:
+                        log.level === "ERROR"
+                          ? "#e36a5f"
+                          : log.level === "WARN"
+                            ? "#de9a4a"
+                            : "#71767e",
+                    }}
+                  >
                     [{log.level}]
                   </span>
-                  <span className="text-ink-faint whitespace-nowrap">{log.source_system}</span>
-                  <span className="text-ink truncate">{log.message}</span>
+                  <span style={{ color: "#9aa0a8" }} className="whitespace-nowrap">
+                    {log.source_system}
+                  </span>
+                  <span className="truncate">{log.message}</span>
                 </div>
               ))}
             </div>
           </div>
+
+          <hr className="border-rule" />
 
           <section className="grid lg:grid-cols-2 gap-8">
             <TopologyDiagram
@@ -482,6 +505,8 @@ export default function Dashboard({
             />
             <IncidentTrendSparkline events={events} />
           </section>
+
+          <hr className="border-rule" />
 
           <section className="flex flex-col gap-3">
             <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">

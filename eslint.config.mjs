@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Static design-reference mockups (not app source, not built/deployed).
+    "Incident Agent UI mockups/**",
   ]),
 ]);
 
